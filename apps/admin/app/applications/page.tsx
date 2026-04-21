@@ -3,7 +3,7 @@ export const revalidate = 0;
 
 import Link from "next/link";
 import { listApplications, listCohorts } from "@neomokdeul/db/store";
-import type { Application, Cohort } from "@neomokdeul/db";
+import { getSignedFileUrl, type Application, type Cohort } from "@neomokdeul/db";
 import { CountsWidget } from "./CountsWidget";
 import { Filters } from "./Filters";
 import { BulkProvider, BulkBar } from "./BulkActions";
@@ -96,6 +96,18 @@ export default async function Page({
 
   const regions = Array.from(new Set(scopedApps.map((a) => a.region))).filter(Boolean);
   const visibleIds = displayApps.map((a) => a.id);
+
+  // Pre-compute signed URLs for every visible application's voice/photo files.
+  const signed = await Promise.all(
+    displayApps.map(async (a) => ({
+      id: a.id,
+      voiceUrl: await getSignedFileUrl("voice-intros", a.voiceFilePath),
+      photoUrl: await getSignedFileUrl("photos", a.photoFilePath),
+    })),
+  );
+  const urlMap = new Map(
+    signed.map((s) => [s.id, { voiceUrl: s.voiceUrl, photoUrl: s.photoUrl }]),
+  );
 
   // Total counts for breadcrumb summary (unfiltered by filter bar, but scoped to tab)
   const pending = scopedApps.filter((a) => a.status === "pending").length;
@@ -202,9 +214,17 @@ export default async function Page({
             }}
           >
             <RowHeader ids={visibleIds} />
-            {displayApps.map((app) => (
-              <ApplicationRow key={app.id} app={app} />
-            ))}
+            {displayApps.map((app) => {
+              const urls = urlMap.get(app.id);
+              return (
+                <ApplicationRow
+                  key={app.id}
+                  app={app}
+                  voiceSignedUrl={urls?.voiceUrl ?? null}
+                  photoSignedUrl={urls?.photoUrl ?? null}
+                />
+              );
+            })}
           </div>
         )}
       </BulkProvider>

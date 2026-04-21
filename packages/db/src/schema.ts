@@ -17,8 +17,8 @@ export interface Application {
   motivation: string;
   source: string;
   agreed: boolean;
-  voiceFileName?: string;
-  photoFileName?: string;
+  voiceFilePath?: string;   // Supabase Storage object path, e.g. "1761234567890-uuid.webm"
+  photoFilePath?: string;   // e.g. "1761234567890-uuid.jpg"
   status: ApplicationStatus;
   note?: string;
   createdAt: string;

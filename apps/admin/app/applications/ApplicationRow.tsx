@@ -129,7 +129,15 @@ export function RowHeader({ ids }: { ids: string[] }) {
   );
 }
 
-export function ApplicationRow({ app }: { app: Application }) {
+export function ApplicationRow({
+  app,
+  voiceSignedUrl,
+  photoSignedUrl,
+}: {
+  app: Application;
+  voiceSignedUrl?: string | null;
+  photoSignedUrl?: string | null;
+}) {
   return (
     <details>
       <summary
@@ -166,15 +174,15 @@ export function ApplicationRow({ app }: { app: Application }) {
           {app.mbti ?? "—"}
         </span>
         <span>
-          {app.voiceFileName ? (
-            <AudioPlayer src={app.voiceFileName} />
+          {voiceSignedUrl ? (
+            <AudioPlayer src={voiceSignedUrl} />
           ) : (
             <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>
           )}
         </span>
         <span>
-          {app.photoFileName ? (
-            <PhotoModal src={app.photoFileName} alt={`${app.name} 사진`} />
+          {photoSignedUrl ? (
+            <PhotoModal src={photoSignedUrl} alt={`${app.name} 사진`} />
           ) : (
             <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>
           )}

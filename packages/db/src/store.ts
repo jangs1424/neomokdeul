@@ -84,8 +84,8 @@ function rowToApplication(r: ApplicationRow): Application {
     previousCohort: r.previous_cohort,
     motivation: r.motivation,
     source: r.source,
-    voiceFileName: r.voice_file_url ?? undefined,
-    photoFileName: r.photo_file_url ?? undefined,
+    voiceFilePath: r.voice_file_url ?? undefined,
+    photoFilePath: r.photo_file_url ?? undefined,
     agreed: Boolean(r.agreed_at),
     status: r.status,
     note: r.note ?? undefined,
@@ -159,8 +159,8 @@ export async function createApplication(
     previous_cohort: input.previousCohort,
     motivation: input.motivation,
     source: input.source,
-    voice_file_url: input.voiceFileName ?? null,
-    photo_file_url: input.photoFileName ?? null,
+    voice_file_url: input.voiceFilePath ?? null,
+    photo_file_url: input.photoFilePath ?? null,
     agreed_at: input.agreed ? new Date().toISOString() : '',
   };
 

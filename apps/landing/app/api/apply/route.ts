@@ -17,8 +17,8 @@ export async function POST(req: Request) {
       "source",
       "agreed",
       "cohortId",
-      "voiceFileName",
-      "photoFileName",
+      "voiceFilePath",
+      "photoFilePath",
     ];
     for (const k of required) {
       if (body[k] === undefined || body[k] === "" || body[k] === null) {
@@ -112,8 +112,8 @@ export async function POST(req: Request) {
       motivation: String(body.motivation),
       source: String(body.source),
       agreed: Boolean(body.agreed),
-      voiceFileName: body.voiceFileName ? String(body.voiceFileName) : undefined,
-      photoFileName: body.photoFileName ? String(body.photoFileName) : undefined,
+      voiceFilePath: body.voiceFilePath ? String(body.voiceFilePath) : undefined,
+      photoFilePath: body.photoFilePath ? String(body.photoFilePath) : undefined,
     };
 
     const app = await createApplication(input);

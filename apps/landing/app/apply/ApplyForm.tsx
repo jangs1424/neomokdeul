@@ -3,6 +3,50 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
 import type { Cohort } from "@neomokdeul/db";
+import { getSupabaseBrowser } from "../../lib/supabase-client";
+
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+function inferExtension(file: File, fallback: string): string {
+  const fromName = file.name.includes(".")
+    ? file.name.split(".").pop()!.toLowerCase()
+    : "";
+  if (fromName) return fromName;
+  const mime = file.type.toLowerCase();
+  if (mime === "audio/webm") return "webm";
+  if (mime === "audio/mpeg") return "mp3";
+  if (mime === "audio/mp4" || mime === "audio/m4a") return "m4a";
+  if (mime === "audio/wav" || mime === "audio/x-wav") return "wav";
+  if (mime === "audio/ogg") return "ogg";
+  if (mime === "image/jpeg") return "jpg";
+  if (mime === "image/png") return "png";
+  if (mime === "image/webp") return "webp";
+  if (mime === "image/heic") return "heic";
+  return fallback;
+}
+
+async function uploadToBucket(
+  bucket: "voice-intros" | "photos",
+  file: File,
+  extFallback: string,
+): Promise<string> {
+  const supabase = getSupabaseBrowser();
+  const ext = inferExtension(file, extFallback);
+  const uuid =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const path = `${Date.now()}-${uuid}.${ext}`;
+  const { error } = await supabase.storage.from(bucket).upload(path, file, {
+    cacheControl: "3600",
+    upsert: false,
+    contentType: file.type || undefined,
+  });
+  if (error) {
+    throw new Error(`[${bucket}] 업로드 실패: ${error.message}`);
+  }
+  return path;
+}
 
 const labelStyle: React.CSSProperties = {
   display: "flex",
@@ -80,6 +124,7 @@ export default function ApplyForm({ cohort }: Props) {
   const [agreed, setAgreed] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
+  const [submitProgress, setSubmitProgress] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [voiceFileError, setVoiceFileError] = useState("");
@@ -110,16 +155,37 @@ export default function ApplyForm({ cohort }: Props) {
     if (!voiceFile) {
       setVoiceFileError("음성 자기소개 파일을 첨부해주세요.");
       fileValid = false;
+    } else if (voiceFile.size > MAX_FILE_BYTES) {
+      setVoiceFileError("음성 파일은 10MB 이하여야 합니다.");
+      fileValid = false;
     }
     if (!photoFile) {
       setPhotoFileError("얼굴 사진을 첨부해주세요.");
+      fileValid = false;
+    } else if (photoFile.size > MAX_FILE_BYTES) {
+      setPhotoFileError("사진 파일은 10MB 이하여야 합니다.");
       fileValid = false;
     }
     if (!fileValid) return;
 
     setSubmitting(true);
+    setSubmitProgress("");
 
     try {
+      // 1) Upload voice intro
+      setSubmitProgress("음성 업로드 중...");
+      const voiceFilePath = await uploadToBucket(
+        "voice-intros",
+        voiceFile!,
+        "webm",
+      );
+
+      // 2) Upload photo
+      setSubmitProgress("사진 업로드 중...");
+      const photoFilePath = await uploadToBucket("photos", photoFile!, "jpg");
+
+      // 3) Submit application metadata
+      setSubmitProgress("신청 접수 중...");
       const res = await fetch("/api/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json; charset=utf-8" },
@@ -137,8 +203,8 @@ export default function ApplyForm({ cohort }: Props) {
           motivation,
           source,
           agreed,
-          voiceFileName: voiceFile ? voiceFile.name : undefined,
-          photoFileName: photoFile ? photoFile.name : undefined,
+          voiceFilePath,
+          photoFilePath,
         }),
       });
 
@@ -150,10 +216,13 @@ export default function ApplyForm({ cohort }: Props) {
       }
 
       setSuccess(true);
-    } catch {
-      setError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "네트워크 오류가 발생했습니다. 다시 시도해주세요.";
+      setError(message);
     } finally {
       setSubmitting(false);
+      setSubmitProgress("");
     }
   }
 
@@ -632,7 +701,7 @@ export default function ApplyForm({ cohort }: Props) {
           transition: "background 0.2s",
         }}
       >
-        {submitting ? "접수 중..." : "신청 접수하기"}
+        {submitting ? submitProgress || "접수 중..." : "신청 접수하기"}
       </button>
     </form>
   );
