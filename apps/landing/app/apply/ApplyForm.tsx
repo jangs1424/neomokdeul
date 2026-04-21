@@ -2,6 +2,7 @@
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
+import type { Cohort } from "@neomokdeul/db";
 
 const labelStyle: React.CSSProperties = {
   display: "flex",
@@ -34,11 +35,44 @@ const noteStyle: React.CSSProperties = {
   marginTop: 4,
 };
 
-export default function ApplyForm() {
+const selectStyle: React.CSSProperties = {
+  ...inputStyle,
+  appearance: "none",
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%231a4d2e' d='M6 8L0 0h12z'/%3E%3C/svg%3E")`,
+  backgroundRepeat: "no-repeat",
+  backgroundPosition: "right 14px center",
+  paddingRight: 36,
+  cursor: "pointer",
+};
+
+const CALL_TIME_OPTIONS: { label: string; value: string }[] = [
+  { label: "평일 저녁 (19~22시)", value: "평일저녁" },
+  { label: "주말 오전", value: "주말오전" },
+  { label: "주말 오후", value: "주말오후" },
+  { label: "주말 저녁", value: "주말저녁" },
+];
+
+const MBTI_OPTIONS = [
+  "INTJ","INTP","ENTJ","ENTP",
+  "INFJ","INFP","ENFJ","ENFP",
+  "ISTJ","ISFJ","ESTJ","ESFJ",
+  "ISTP","ISFP","ESTP","ESFP",
+];
+
+interface Props {
+  cohort: Cohort;
+}
+
+export default function ApplyForm({ cohort }: Props) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [gender, setGender] = useState<"male" | "female" | "">("");
   const [birthYear, setBirthYear] = useState("");
+  const [occupation, setOccupation] = useState("");
+  const [region, setRegion] = useState("");
+  const [callTimes, setCallTimes] = useState<string[]>([]);
+  const [mbti, setMbti] = useState("");
+  const [previousCohort, setPreviousCohort] = useState<boolean | null>(null);
   const [voiceFile, setVoiceFile] = useState<File | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [motivation, setMotivation] = useState("");
@@ -49,20 +83,42 @@ export default function ApplyForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  function toggleCallTime(value: string) {
+    setCallTimes((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
+
+    if (callTimes.length === 0) {
+      setError("통화 가능 시간대를 하나 이상 선택해주세요.");
+      return;
+    }
+    if (previousCohort === null) {
+      setError("이전 기수 참여 여부를 선택해주세요.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       const res = await fetch("/api/apply", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json; charset=utf-8" },
         body: JSON.stringify({
           name,
           phone,
           gender,
           birthYear: Number(birthYear),
+          occupation,
+          region,
+          callTimes,
+          mbti: mbti || undefined,
+          previousCohort,
+          cohortId: cohort.id,
           motivation,
           source,
           agreed,
@@ -118,7 +174,7 @@ export default function ApplyForm() {
             marginBottom: 12,
           }}
         >
-          신청이 접수되었습니다
+          {cohort.name} 신청이 접수되었습니다
         </h2>
         <p
           style={{
@@ -238,6 +294,134 @@ export default function ApplyForm() {
         />
       </label>
 
+      {/* 직업 */}
+      <label style={labelStyle}>
+        <span style={labelTextStyle}>
+          직업 <span style={{ color: "var(--coral)" }}>*</span>
+        </span>
+        <input
+          type="text"
+          required
+          value={occupation}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setOccupation(e.target.value)}
+          placeholder="예: UX 디자이너, 대학원생"
+          style={inputStyle}
+          onFocus={(e) => (e.target.style.outline = "2px solid var(--forest)")}
+          onBlur={(e) => (e.target.style.outline = "none")}
+        />
+      </label>
+
+      {/* 거주 지역 */}
+      <label style={labelStyle}>
+        <span style={labelTextStyle}>
+          거주 지역 <span style={{ color: "var(--coral)" }}>*</span>
+        </span>
+        <select
+          required
+          value={region}
+          onChange={(e: ChangeEvent<HTMLSelectElement>) => setRegion(e.target.value)}
+          style={selectStyle}
+          onFocus={(e) => (e.target.style.outline = "2px solid var(--forest)")}
+          onBlur={(e) => (e.target.style.outline = "none")}
+        >
+          <option value="" disabled>
+            선택해주세요
+          </option>
+          <option value="서울 강남/서초">서울 강남/서초</option>
+          <option value="서울 마포/용산">서울 마포/용산</option>
+          <option value="서울 기타">서울 기타</option>
+          <option value="경기/인천">경기/인천</option>
+          <option value="기타 지역">기타 지역</option>
+        </select>
+      </label>
+
+      {/* 통화 가능 시간대 */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ ...labelTextStyle, marginBottom: 10 }}>
+          통화 가능 시간대 <span style={{ color: "var(--coral)" }}>*</span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {CALL_TIME_OPTIONS.map((opt) => (
+            <label
+              key={opt.value}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 15,
+                cursor: "pointer",
+                color: "var(--ink)",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={callTimes.includes(opt.value)}
+                onChange={() => toggleCallTime(opt.value)}
+                style={{ accentColor: "var(--forest)", width: 18, height: 18 }}
+              />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+        <span style={noteStyle}>복수 선택 가능</span>
+      </div>
+
+      {/* MBTI */}
+      <label style={labelStyle}>
+        <span style={labelTextStyle}>MBTI (선택)</span>
+        <select
+          value={mbti}
+          onChange={(e: ChangeEvent<HTMLSelectElement>) => setMbti(e.target.value)}
+          style={selectStyle}
+          onFocus={(e) => (e.target.style.outline = "2px solid var(--forest)")}
+          onBlur={(e) => (e.target.style.outline = "none")}
+        >
+          <option value="">모름/안적음</option>
+          {MBTI_OPTIONS.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {/* 이전 기수 참여 여부 */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ ...labelTextStyle, marginBottom: 10 }}>
+          이전에 너목들 참여한 적 있나요?{" "}
+          <span style={{ color: "var(--coral)" }}>*</span>
+        </div>
+        <div style={{ display: "flex", gap: 24 }}>
+          {(
+            [
+              { label: "없음", value: false },
+              { label: "있음", value: true },
+            ] as const
+          ).map(({ label, value }) => (
+            <label
+              key={label}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 15,
+                cursor: "pointer",
+                color: "var(--ink)",
+              }}
+            >
+              <input
+                type="radio"
+                name="previousCohort"
+                checked={previousCohort === value}
+                onChange={() => setPreviousCohort(value)}
+                style={{ accentColor: "var(--forest)", width: 18, height: 18 }}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+      </div>
+
       {/* 음성 자기소개 */}
       <label style={labelStyle}>
         <span style={labelTextStyle}>음성 자기소개 (30초)</span>
@@ -305,15 +489,7 @@ export default function ApplyForm() {
           required
           value={source}
           onChange={(e: ChangeEvent<HTMLSelectElement>) => setSource(e.target.value)}
-          style={{
-            ...inputStyle,
-            appearance: "none",
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%231a4d2e' d='M6 8L0 0h12z'/%3E%3C/svg%3E")`,
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "right 14px center",
-            paddingRight: 36,
-            cursor: "pointer",
-          }}
+          style={selectStyle}
           onFocus={(e) => (e.target.style.outline = "2px solid var(--forest)")}
           onBlur={(e) => (e.target.style.outline = "none")}
         >

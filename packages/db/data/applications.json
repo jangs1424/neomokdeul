@@ -1,1 +1,57 @@
-[]
+[
+  {
+    "name": "김민수",
+    "phone": "010-5555-6666",
+    "gender": "male",
+    "birthYear": 1994,
+    "motivation": "테스트용 신청입니다. 목소리 매칭 흥미로워 보이네요.",
+    "source": "인스타그램",
+    "agreed": true,
+    "id": "9bbe1b49-1e3f-4fec-863d-2aa79809ce78",
+    "status": "approved",
+    "createdAt": "2026-04-21T15:24:10.425Z",
+    "updatedAt": "2026-04-21T15:24:20.271Z"
+  },
+  {
+    "name": "�����׽�Ʈ",
+    "phone": "010-1111-2222",
+    "gender": "female",
+    "birthYear": 1997,
+    "occupation": "UX �����̳�",
+    "region": "���� ����/���",
+    "callTimes": [
+      "��������",
+      "�ָ�����"
+    ],
+    "mbti": "ENFP",
+    "previousCohort": false,
+    "cohortId": "11111111-1111-1111-1111-111111111111",
+    "motivation": "��Ҹ� ��Ī�� Ư���ؼ���",
+    "source": "�ν�Ÿ�׷�",
+    "agreed": true,
+    "id": "e4e5fe83-9862-41f9-8acf-e0bdd2182f66",
+    "status": "pending",
+    "createdAt": "2026-04-21T15:38:35.895Z"
+  },
+  {
+    "name": "검증테스트",
+    "phone": "010-2222-3333",
+    "gender": "female",
+    "birthYear": 1997,
+    "occupation": "UX 디자이너",
+    "region": "서울 마포/용산",
+    "callTimes": [
+      "평일저녁",
+      "주말오후"
+    ],
+    "mbti": "ENFP",
+    "previousCohort": false,
+    "cohortId": "11111111-1111-1111-1111-111111111111",
+    "motivation": "목소리 매칭이 특이해서요",
+    "source": "인스타그램",
+    "agreed": true,
+    "id": "28d82f06-77df-43cf-8541-3c8dee4ccae5",
+    "status": "pending",
+    "createdAt": "2026-04-21T15:38:48.699Z"
+  }
+]

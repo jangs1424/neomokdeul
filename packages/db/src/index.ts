@@ -27,10 +27,17 @@ export type Stats = {
 export const reviews: Review[] = reviewsData as Review[];
 export const stats: Stats = statsData as Stats;
 
-export type { Application, ApplicationInput, ApplicationStatus, Gender } from './schema';
+export type { Application, ApplicationInput, ApplicationStatus, Gender, Cohort, CohortStatus } from './schema';
 export {
   listApplications,
   getApplication,
   createApplication,
   updateApplicationStatus,
+  listCohorts,
+  getCohort,
+  getCohortBySlug,
+  getActiveCohort,
+  createCohort,
+  updateCohort,
 } from './store';
+export { getSupabaseAdmin } from './supabase';

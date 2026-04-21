@@ -8,6 +8,12 @@ export interface Application {
   phone: string;
   gender: Gender;
   birthYear: number;
+  occupation: string;
+  region: string;
+  callTimes: string[];
+  mbti?: string;
+  previousCohort: boolean;
+  cohortId: string;
   motivation: string;
   source: string;
   agreed: boolean;
@@ -20,3 +26,25 @@ export interface Application {
 }
 
 export type ApplicationInput = Omit<Application, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'note'>;
+
+export type CohortStatus = 'draft' | 'recruiting' | 'closed' | 'running' | 'completed';
+
+export interface Cohort {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string;
+  status: CohortStatus;
+  programStartDate: string;
+  programEndDate: string;
+  applyOpensAt: string;
+  applyClosesAt: string;
+  priceKrw: number;
+  maxMale: number;
+  maxFemale: number;
+  latpeedPaymentUrl?: string;
+  heroTitle?: string;
+  heroSubtitle?: string;
+  heroImageUrl?: string;
+  specialFeatures: string[];
+}

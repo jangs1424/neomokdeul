@@ -10,5 +10,8 @@
     "./store": "./src/store.ts",
     "./data/reviews.json": "./data/reviews.json",
     "./data/stats.json": "./data/stats.json"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.104.0"
   }
 }

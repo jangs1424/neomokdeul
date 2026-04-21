@@ -1,0 +1,17 @@
+[
+  {
+    "id": "11111111-1111-1111-1111-111111111111",
+    "slug": "may-2026",
+    "name": "2026년 5월 기수",
+    "description": "첫 번째 공식 기수. 얼굴 대신 목소리부터 시작되는 8일간의 익명 전화 실험.",
+    "status": "recruiting",
+    "programStartDate": "2026-05-15",
+    "programEndDate": "2026-05-22",
+    "applyOpensAt": "2026-04-20T00:00:00+09:00",
+    "applyClosesAt": "2026-05-10T23:59:00+09:00",
+    "priceKrw": 45000,
+    "maxMale": 15,
+    "maxFemale": 15,
+    "specialFeatures": []
+  }
+]
