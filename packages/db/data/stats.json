@@ -1,0 +1,28 @@
+{
+  "totalParticipants": 106,
+  "averageRating": 4.32,
+  "recommendRate": 85,
+  "cohorts": [
+    {
+      "id": "0820",
+      "label": "2025년 8월",
+      "n": 34,
+      "avgRating": 4.47,
+      "recommendRate": 91
+    },
+    {
+      "id": "0924",
+      "label": "2025년 9월",
+      "n": 53,
+      "avgRating": 4.25,
+      "recommendRate": 87
+    },
+    {
+      "id": "1218",
+      "label": "2025년 12월",
+      "n": 19,
+      "avgRating": 4.26,
+      "recommendRate": 68
+    }
+  ]
+}

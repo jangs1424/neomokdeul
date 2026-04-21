@@ -1,0 +1,12 @@
+{
+  "name": "@neomokdeul/db",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./data/reviews.json": "./data/reviews.json",
+    "./data/stats.json": "./data/stats.json"
+  }
+}

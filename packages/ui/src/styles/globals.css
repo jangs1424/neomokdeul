@@ -1,0 +1,224 @@
+/* =========================================================
+   @neomokdeul/ui — globals.css
+   Import once in your app's root layout:
+     import '@neomokdeul/ui/styles/globals.css';
+   ========================================================= */
+
+/* ─── CSS Custom Properties (Design Tokens) ─────────────── */
+:root {
+  /* Colors */
+  --cream: #f5efd8;
+  --cream-2: #faf5e4;
+  --cream-deep: #ece4c7;
+  --forest: #1a4d2e;
+  --forest-dark: #0f3821;
+  --forest-deep: #08301b;
+  --yellow: #f4c430;
+  --yellow-bright: #ffd93d;
+  --coral: #e85d4d;
+  --ink: #1a1a1a;
+  --sub: #5a5a5a;
+  --line: #d9cfa9;
+
+  /* Font family slots — filled by next/font in consumer apps */
+  --font-serif: "Nanum Myeongjo", serif;
+  --font-sans: "IBM Plex Sans KR", sans-serif;
+  --font-hand-kr: "Gaegu", cursive;
+  --font-hand-en: "Caveat", cursive;
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --space-2xl: 64px;
+  --space-3xl: 96px;
+}
+
+/* ─── Base Reset + Body ──────────────────────────────────── */
+*,
+*::before,
+*::after {
+  -webkit-font-smoothing: antialiased;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* ─── Typography Utilities ───────────────────────────────── */
+.serif {
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+}
+.hand-kr {
+  font-family: var(--font-hand-kr);
+}
+.hand-en {
+  font-family: var(--font-hand-en);
+}
+.sans {
+  font-family: var(--font-sans);
+}
+
+/* ─── Layout Wrappers ────────────────────────────────────── */
+.wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+.wrap-narrow {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+@media (max-width: 720px) {
+  .wrap,
+  .wrap-narrow {
+    padding: 0 24px;
+  }
+}
+
+/* ─── Button: Yellow CTA ─────────────────────────────────── */
+.btn-yellow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--yellow);
+  color: var(--forest-deep);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 11px 22px;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--forest-deep);
+  box-shadow: 3px 3px 0 var(--forest-deep);
+  transition: transform 0.15s, box-shadow 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.btn-yellow:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 var(--forest-deep);
+}
+.btn-yellow:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--forest-deep);
+}
+
+/* ─── Button: Forest Green ───────────────────────────────── */
+.btn-green {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--forest);
+  color: var(--cream);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 11px 22px;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--forest-deep);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+.btn-green:hover {
+  background: var(--forest-dark);
+}
+
+/* ─── Section Label (Kicker) ─────────────────────────────── */
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--forest);
+  font-weight: 600;
+}
+.section-label::before {
+  content: "";
+  width: 24px;
+  height: 1px;
+  background: var(--forest);
+}
+
+/* ─── Marquee ────────────────────────────────────────────── */
+.marquee {
+  background: var(--forest);
+  color: var(--yellow);
+  padding: 22px 0;
+  overflow: hidden;
+  border-top: 4px solid var(--forest-deep);
+  border-bottom: 4px solid var(--forest-deep);
+}
+
+.marquee-track {
+  display: flex;
+  gap: 48px;
+  white-space: nowrap;
+  animation: marquee 30s linear infinite;
+  font-family: var(--font-serif);
+  font-weight: 800;
+  font-size: 40px;
+  letter-spacing: -0.02em;
+}
+
+.marquee-track .leaf {
+  color: var(--yellow);
+  opacity: 0.6;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* ─── Reveal (IntersectionObserver) ─────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.9s ease, transform 0.9s ease;
+}
+
+.reveal.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ─── Misc Utilities ─────────────────────────────────────── */
+.text-center {
+  text-align: center;
+}
