@@ -27,7 +27,7 @@ export default function Header() {
               <a href="#reviews">Reviews</a>
               <a href="#faq">FAQ</a>
             </div>
-            <a href="#apply" className="btn-yellow">
+            <a href="/apply" className="btn-yellow">
               신청하기 →
             </a>
           </nav>

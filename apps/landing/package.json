@@ -12,7 +12,9 @@
   "dependencies": {
     "next": "^15",
     "react": "^19",
-    "react-dom": "^19"
+    "react-dom": "^19",
+    "@neomokdeul/db": "workspace:*",
+    "@neomokdeul/ui": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5",

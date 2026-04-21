@@ -26,3 +26,11 @@ export type Stats = {
 
 export const reviews: Review[] = reviewsData as Review[];
 export const stats: Stats = statsData as Stats;
+
+export type { Application, ApplicationInput, ApplicationStatus, Gender } from './schema';
+export {
+  listApplications,
+  getApplication,
+  createApplication,
+  updateApplicationStatus,
+} from './store';

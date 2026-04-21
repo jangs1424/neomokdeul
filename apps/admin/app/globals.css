@@ -18,3 +18,8 @@ body {
   color: var(--ink);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
 }
+
+@media (max-width: 899px) {
+  .admin-sidebar { display: none !important; }
+  .admin-main { margin-left: 0 !important; padding: 20px 16px !important; }
+}

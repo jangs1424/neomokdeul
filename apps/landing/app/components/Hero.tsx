@@ -25,7 +25,7 @@ export default function Hero() {
 
           <div className="hero-actions">
             <a
-              href="#apply"
+              href="/apply"
               className="btn-yellow"
               style={{ padding: "16px 28px", fontSize: 15 }}
             >

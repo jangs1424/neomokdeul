@@ -1,5 +1,12 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+import { listApplications } from "@neomokdeul/db/store";
+import type { Application } from "@neomokdeul/db";
+import { ActionButtons } from "./ActionButtons";
+
 const navItems = [
-  { label: "신청 관리", href: "#" },
+  { label: "신청 관리", href: "/" },
   { label: "매칭 실행", href: "#" },
   { label: "참가자", href: "#" },
   { label: "블랙리스트", href: "#" },
@@ -7,32 +14,132 @@ const navItems = [
   { label: "설정", href: "#" },
 ];
 
-const cards = [
-  { title: "대기 중 신청", value: "0", hint: "심사 대기" },
-  { title: "오늘 문자 발송 예정", value: "0", hint: "예약된 SMS" },
-  { title: "최근 매칭", value: "0", hint: "최근 7일" },
-];
+const STATUS_LABEL: Record<string, string> = {
+  pending: "대기",
+  approved: "승인",
+  rejected: "반려",
+};
 
-export default function Page() {
+const STATUS_STYLE: Record<string, React.CSSProperties> = {
+  pending: {
+    background: "#fef3c7",
+    color: "#92400e",
+  },
+  approved: {
+    background: "#d1fae5",
+    color: "#065f46",
+  },
+  rejected: {
+    background: "#fee2e2",
+    color: "#991b1b",
+  },
+};
+
+function StatusPill({ status }: { status: string }) {
   return (
-    <div className="flex min-h-screen">
+    <span
+      style={{
+        ...STATUS_STYLE[status],
+        padding: "4px 10px",
+        borderRadius: 12,
+        fontSize: 11,
+        fontWeight: 600,
+        textTransform: "uppercase",
+        letterSpacing: "0.05em",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {STATUS_LABEL[status] ?? status}
+    </span>
+  );
+}
+
+function formatDate(iso: string) {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const { status: filterParam } = await searchParams;
+  const allApps = await listApplications();
+
+  const pending = allApps.filter((a) => a.status === "pending").length;
+  const approved = allApps.filter((a) => a.status === "approved").length;
+  const rejected = allApps.filter((a) => a.status === "rejected").length;
+  const total = allApps.length;
+
+  let displayApps: Application[];
+  if (filterParam === "pending") {
+    displayApps = allApps.filter((a) => a.status === "pending");
+  } else if (filterParam === "done") {
+    displayApps = allApps.filter((a) => a.status !== "pending");
+  } else {
+    displayApps = allApps;
+  }
+
+  // newest first
+  displayApps = [...displayApps].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+
+  const tabStyle = (active: boolean): React.CSSProperties => ({
+    padding: "6px 16px",
+    borderRadius: 6,
+    fontSize: 13,
+    fontWeight: active ? 600 : 400,
+    cursor: "pointer",
+    border: "none",
+    background: active ? "var(--forest)" : "transparent",
+    color: active ? "#fff" : "var(--sub)",
+    textDecoration: "none",
+    display: "inline-block",
+  });
+
+  return (
+    <div style={{ display: "flex", minHeight: "100vh" }}>
+      {/* Sidebar */}
       <aside
-        className="fixed left-0 top-0 flex h-screen w-60 flex-col border-r"
-        style={{ background: "var(--cream)", borderColor: "var(--line)" }}
+        className="admin-sidebar"
+        style={{
+          width: 240,
+          minHeight: "100vh",
+          background: "var(--cream-2)",
+          borderRight: "1px solid var(--line)",
+          display: "flex",
+          flexDirection: "column",
+          position: "fixed",
+          top: 0,
+          left: 0,
+        }}
       >
         <div
-          className="px-6 py-6 text-lg"
-          style={{ fontFamily: "var(--font-serif)", color: "var(--forest)" }}
+          style={{
+            padding: "24px 24px 16px",
+            fontSize: 17,
+            fontFamily: "var(--font-serif)",
+            color: "var(--forest)",
+            borderBottom: "1px solid var(--line)",
+          }}
         >
           Socially · Admin
         </div>
-        <nav className="flex flex-col gap-1 px-3">
+        <nav style={{ display: "flex", flexDirection: "column", gap: 2, padding: "12px 12px" }}>
           {navItems.map((item) => (
             <a
               key={item.label}
               href={item.href}
-              className="rounded px-3 py-2 text-sm transition-colors hover:bg-white/50"
-              style={{ color: "var(--ink)" }}
+              style={{
+                display: "block",
+                padding: "8px 12px",
+                borderRadius: 6,
+                fontSize: 14,
+                color: "var(--ink)",
+                textDecoration: "none",
+              }}
             >
               {item.label}
             </a>
@@ -40,42 +147,145 @@ export default function Page() {
         </nav>
       </aside>
 
-      <main className="ml-60 flex-1 px-10 py-8">
-        <div className="text-xs" style={{ color: "var(--sub)" }}>
-          홈 / 대시보드
+      {/* Main */}
+      <main className="admin-main" style={{ marginLeft: 240, flex: 1, padding: "32px 40px" }}>
+        {/* Breadcrumb */}
+        <div style={{ fontSize: 12, color: "var(--sub)", marginBottom: 8 }}>
+          홈 / 신청 관리
         </div>
-        <h1
-          className="mt-2 text-3xl font-bold"
-          style={{ fontFamily: "var(--font-serif)", color: "var(--forest)" }}
-        >
-          오늘의 작업
-        </h1>
 
-        <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-          {cards.map((card) => (
+        {/* Title */}
+        <h1
+          style={{
+            fontSize: 26,
+            fontWeight: 700,
+            fontFamily: "var(--font-serif)",
+            color: "var(--forest)",
+            margin: 0,
+          }}
+        >
+          신청 관리
+        </h1>
+        <p style={{ fontSize: 13, color: "var(--sub)", marginTop: 6, marginBottom: 24 }}>
+          대기 {pending} · 승인 {approved} · 반려 {rejected} · 총 {total}
+        </p>
+
+        {/* Filter tabs */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
+          <a href="/" style={tabStyle(!filterParam || filterParam === "all")}>
+            전체
+          </a>
+          <a href="/?status=pending" style={tabStyle(filterParam === "pending")}>
+            대기
+          </a>
+          <a href="/?status=done" style={tabStyle(filterParam === "done")}>
+            처리완료
+          </a>
+        </div>
+
+        {/* Table */}
+        {displayApps.length === 0 ? (
+          <div
+            style={{
+              padding: "48px 0",
+              textAlign: "center",
+              color: "var(--sub)",
+              fontSize: 14,
+              border: "1px solid var(--line)",
+              borderRadius: 8,
+            }}
+          >
+            신청 내역이 없습니다.
+          </div>
+        ) : (
+          <div
+            style={{
+              border: "1px solid var(--line)",
+              borderRadius: 8,
+              overflow: "hidden",
+            }}
+          >
+            {/* Table header */}
             <div
-              key={card.title}
-              className="rounded-lg p-5"
               style={{
-                background: "var(--cream-2)",
-                border: "1px solid rgba(26, 77, 46, 0.1)",
+                display: "grid",
+                gridTemplateColumns: "80px 80px 60px 60px 130px 90px 140px 1fr",
+                padding: "10px 12px",
+                background: "var(--cream)",
+                borderBottom: "1px solid var(--line)",
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--sub)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+                gap: 8,
               }}
             >
-              <div className="text-sm" style={{ color: "var(--sub)" }}>
-                {card.title}
-              </div>
-              <div
-                className="mt-3 text-3xl font-bold"
-                style={{ color: "var(--forest)" }}
-              >
-                {card.value}
-              </div>
-              <div className="mt-1 text-xs" style={{ color: "var(--sub)" }}>
-                {card.hint}
-              </div>
+              <span>상태</span>
+              <span>이름</span>
+              <span>성별</span>
+              <span>년생</span>
+              <span>전화</span>
+              <span>유입경로</span>
+              <span>신청일시</span>
+              <span>액션</span>
             </div>
-          ))}
-        </div>
+
+            {displayApps.map((app) => (
+              <details key={app.id}>
+                <summary
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "80px 80px 60px 60px 130px 90px 140px 1fr",
+                    padding: "12px 12px",
+                    borderBottom: "1px solid var(--line)",
+                    fontSize: 13,
+                    color: "var(--ink)",
+                    alignItems: "center",
+                    gap: 8,
+                    listStyle: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span>
+                    <StatusPill status={app.status} />
+                  </span>
+                  <span style={{ fontWeight: 500 }}>{app.name}</span>
+                  <span style={{ color: "var(--sub)" }}>
+                    {app.gender === "male" ? "남" : "여"}
+                  </span>
+                  <span style={{ color: "var(--sub)" }}>{app.birthYear}</span>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{app.phone}</span>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{app.source}</span>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{formatDate(app.createdAt)}</span>
+                  <span>
+                    {app.status === "pending" ? (
+                      <ActionButtons id={app.id} />
+                    ) : (
+                      <span style={{ fontSize: 12, color: "var(--sub)" }}>
+                        {app.note ?? "—"}
+                      </span>
+                    )}
+                  </span>
+                </summary>
+                <div
+                  style={{
+                    padding: "12px 20px 16px",
+                    background: "var(--cream-2)",
+                    borderBottom: "1px solid var(--line)",
+                    fontSize: 13,
+                    color: "var(--ink)",
+                  }}
+                >
+                  <strong style={{ color: "var(--sub)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    지원 동기
+                  </strong>
+                  <p style={{ margin: "6px 0 0", lineHeight: 1.7 }}>{app.motivation}</p>
+                </div>
+              </details>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );
