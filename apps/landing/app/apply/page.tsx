@@ -112,7 +112,7 @@ export default async function ApplyPage() {
             marginBottom: 32,
           }}
         >
-          간단한 심사 후 승인 여부를 문자로 안내드려요.
+          {cohort.applyIntroText ?? "간단한 심사 후 승인 여부를 문자로 안내드려요."}
         </p>
 
         <hr

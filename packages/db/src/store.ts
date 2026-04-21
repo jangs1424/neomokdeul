@@ -54,6 +54,11 @@ type CohortRow = {
   hero_subtitle: string | null;
   hero_image_url: string | null;
   special_features: string[];
+  approved_sms_template: string | null;
+  apply_intro_text: string | null;
+  voice_intro_help: string | null;
+  photo_help: string | null;
+  motivation_prompt: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -105,6 +110,11 @@ function rowToCohort(r: CohortRow): Cohort {
     heroSubtitle: r.hero_subtitle ?? undefined,
     heroImageUrl: r.hero_image_url ?? undefined,
     specialFeatures: r.special_features ?? [],
+    approvedSmsTemplate: r.approved_sms_template ?? undefined,
+    applyIntroText: r.apply_intro_text ?? undefined,
+    voiceIntroHelp: r.voice_intro_help ?? undefined,
+    photoHelp: r.photo_help ?? undefined,
+    motivationPrompt: r.motivation_prompt ?? undefined,
   };
 }
 
@@ -258,6 +268,11 @@ export async function createCohort(
     hero_subtitle: input.heroSubtitle ?? null,
     hero_image_url: input.heroImageUrl ?? null,
     special_features: input.specialFeatures ?? [],
+    approved_sms_template: input.approvedSmsTemplate ?? null,
+    apply_intro_text: input.applyIntroText ?? null,
+    voice_intro_help: input.voiceIntroHelp ?? null,
+    photo_help: input.photoHelp ?? null,
+    motivation_prompt: input.motivationPrompt ?? null,
   };
 
   const { data, error } = await getSupabaseAdmin()
@@ -290,6 +305,11 @@ export async function updateCohort(
   if (patch.heroSubtitle !== undefined) row.hero_subtitle = patch.heroSubtitle ?? null;
   if (patch.heroImageUrl !== undefined) row.hero_image_url = patch.heroImageUrl ?? null;
   if (patch.specialFeatures !== undefined) row.special_features = patch.specialFeatures;
+  if (patch.approvedSmsTemplate !== undefined) row.approved_sms_template = patch.approvedSmsTemplate ?? null;
+  if (patch.applyIntroText !== undefined) row.apply_intro_text = patch.applyIntroText ?? null;
+  if (patch.voiceIntroHelp !== undefined) row.voice_intro_help = patch.voiceIntroHelp ?? null;
+  if (patch.photoHelp !== undefined) row.photo_help = patch.photoHelp ?? null;
+  if (patch.motivationPrompt !== undefined) row.motivation_prompt = patch.motivationPrompt ?? null;
 
   const { data, error } = await getSupabaseAdmin()
     .from('cohorts')

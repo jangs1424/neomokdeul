@@ -16,6 +16,9 @@ export async function POST(req: Request) {
       "motivation",
       "source",
       "agreed",
+      "cohortId",
+      "voiceFileName",
+      "photoFileName",
     ];
     for (const k of required) {
       if (body[k] === undefined || body[k] === "" || body[k] === null) {

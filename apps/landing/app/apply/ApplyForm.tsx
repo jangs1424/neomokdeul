@@ -82,6 +82,8 @@ export default function ApplyForm({ cohort }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [voiceFileError, setVoiceFileError] = useState("");
+  const [photoFileError, setPhotoFileError] = useState("");
 
   function toggleCallTime(value: string) {
     setCallTimes((prev) =>
@@ -92,6 +94,8 @@ export default function ApplyForm({ cohort }: Props) {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
+    setVoiceFileError("");
+    setPhotoFileError("");
 
     if (callTimes.length === 0) {
       setError("통화 가능 시간대를 하나 이상 선택해주세요.");
@@ -101,6 +105,17 @@ export default function ApplyForm({ cohort }: Props) {
       setError("이전 기수 참여 여부를 선택해주세요.");
       return;
     }
+
+    let fileValid = true;
+    if (!voiceFile) {
+      setVoiceFileError("음성 자기소개 파일을 첨부해주세요.");
+      fileValid = false;
+    }
+    if (!photoFile) {
+      setPhotoFileError("얼굴 사진을 첨부해주세요.");
+      fileValid = false;
+    }
+    if (!fileValid) return;
 
     setSubmitting(true);
 
@@ -325,13 +340,25 @@ export default function ApplyForm({ cohort }: Props) {
           onBlur={(e) => (e.target.style.outline = "none")}
         >
           <option value="" disabled>
-            선택해주세요
+            지역 선택
           </option>
-          <option value="서울 강남/서초">서울 강남/서초</option>
-          <option value="서울 마포/용산">서울 마포/용산</option>
-          <option value="서울 기타">서울 기타</option>
-          <option value="경기/인천">경기/인천</option>
-          <option value="기타 지역">기타 지역</option>
+          <option value="서울">서울</option>
+          <option value="경기도">경기도</option>
+          <option value="인천">인천</option>
+          <option value="부산">부산</option>
+          <option value="대구">대구</option>
+          <option value="광주">광주</option>
+          <option value="대전">대전</option>
+          <option value="울산">울산</option>
+          <option value="세종">세종</option>
+          <option value="강원도">강원도</option>
+          <option value="충청북도">충청북도</option>
+          <option value="충청남도">충청남도</option>
+          <option value="전라북도">전라북도</option>
+          <option value="전라남도">전라남도</option>
+          <option value="경상북도">경상북도</option>
+          <option value="경상남도">경상남도</option>
+          <option value="제주도">제주도</option>
         </select>
       </label>
 
@@ -423,8 +450,10 @@ export default function ApplyForm({ cohort }: Props) {
       </div>
 
       {/* 음성 자기소개 */}
-      <label style={labelStyle}>
-        <span style={labelTextStyle}>음성 자기소개 (30초)</span>
+      <div style={labelStyle}>
+        <span style={labelTextStyle}>
+          음성 자기소개 <span style={{ color: "var(--coral)" }}>*</span>
+        </span>
         <input
           type="file"
           accept="audio/*"
@@ -437,12 +466,30 @@ export default function ApplyForm({ cohort }: Props) {
             cursor: "pointer",
           }}
         />
-        <span style={noteStyle}>선택사항 — 실제 업로드는 추후 연동</span>
-      </label>
+        {voiceFileError && (
+          <span style={{ color: "var(--coral)", fontSize: 13, marginTop: 4 }}>
+            {voiceFileError}
+          </span>
+        )}
+        <div
+          style={{
+            fontSize: 13,
+            color: "var(--sub)",
+            lineHeight: 1.7,
+            marginTop: 6,
+            whiteSpace: "pre-line",
+          }}
+        >
+          {cohort.voiceIntroHelp ??
+            "너목들은 얼굴보다 목소리가 먼저인 프로그램이에요. 호스트가 대화 톤과 말의 결을 확인하는 데 사용합니다.\n예시: \"안녕하세요, 저는 ○○에서 일하고 평소에 ○○을 좋아해요. 새로운 사람 만나는 걸 기대하고 있어요.\" (30초 이내)"}
+        </div>
+      </div>
 
       {/* 얼굴 사진 */}
-      <label style={labelStyle}>
-        <span style={labelTextStyle}>얼굴 사진</span>
+      <div style={labelStyle}>
+        <span style={labelTextStyle}>
+          얼굴 사진 <span style={{ color: "var(--coral)" }}>*</span>
+        </span>
         <input
           type="file"
           accept="image/*"
@@ -455,8 +502,23 @@ export default function ApplyForm({ cohort }: Props) {
             cursor: "pointer",
           }}
         />
-        <span style={noteStyle}>선택사항 — 실제 업로드는 추후 연동</span>
-      </label>
+        {photoFileError && (
+          <span style={{ color: "var(--coral)", fontSize: 13, marginTop: 4 }}>
+            {photoFileError}
+          </span>
+        )}
+        <div
+          style={{
+            fontSize: 13,
+            color: "var(--sub)",
+            lineHeight: 1.7,
+            marginTop: 6,
+          }}
+        >
+          {cohort.photoHelp ??
+            "호스트만 심사용으로 확인하고, 참가자 간에는 프로그램 기간 내내 공개되지 않아요. 최종 매칭 후 서로 \"예\"를 선택하면 연락처가 교환됩니다."}
+        </div>
+      </div>
 
       {/* 지원 동기 */}
       <label style={labelStyle}>
@@ -467,7 +529,7 @@ export default function ApplyForm({ cohort }: Props) {
           required
           value={motivation}
           onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setMotivation(e.target.value)}
-          placeholder="너목들에 지원하게 된 이유를 자유롭게 적어주세요."
+          placeholder={cohort.motivationPrompt ?? "왜 이 프로그램에 지원하시나요? 어떤 경험을 기대하는지 2~4줄 편하게 적어주세요."}
           rows={4}
           style={{
             ...inputStyle,

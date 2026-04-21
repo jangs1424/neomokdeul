@@ -47,4 +47,9 @@ export interface Cohort {
   heroSubtitle?: string;
   heroImageUrl?: string;
   specialFeatures: string[];
+  approvedSmsTemplate?: string;
+  applyIntroText?: string;
+  voiceIntroHelp?: string;
+  photoHelp?: string;
+  motivationPrompt?: string;
 }

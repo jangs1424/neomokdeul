@@ -102,6 +102,12 @@ export default function CohortForm({ mode, cohort }: Props) {
     cohort?.specialFeatures?.join(", ") ?? ""
   );
 
+  const [approvedSmsTemplate, setApprovedSmsTemplate] = useState(cohort?.approvedSmsTemplate ?? "");
+  const [applyIntroText, setApplyIntroText] = useState(cohort?.applyIntroText ?? "");
+  const [voiceIntroHelp, setVoiceIntroHelp] = useState(cohort?.voiceIntroHelp ?? "");
+  const [photoHelp, setPhotoHelp] = useState(cohort?.photoHelp ?? "");
+  const [motivationPrompt, setMotivationPrompt] = useState(cohort?.motivationPrompt ?? "");
+
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -148,6 +154,11 @@ export default function CohortForm({ mode, cohort }: Props) {
       specialFeatures: specialFeatures
         ? specialFeatures.split(",").map((s) => s.trim()).filter(Boolean)
         : [],
+      approvedSmsTemplate: approvedSmsTemplate || undefined,
+      applyIntroText: applyIntroText || undefined,
+      voiceIntroHelp: voiceIntroHelp || undefined,
+      photoHelp: photoHelp || undefined,
+      motivationPrompt: motivationPrompt || undefined,
     };
 
     try {
@@ -323,14 +334,19 @@ export default function CohortForm({ mode, cohort }: Props) {
           </div>
         </div>
         <div style={{ ...fieldStyle, marginTop: 16 }}>
-          <label style={labelStyle}>Latpeed 결제 URL</label>
+          <label style={labelStyle}>
+            Latpeed 결제 URL <span style={{ color: "#dc2626" }}>*</span>
+          </label>
           <input
             type="url"
             value={latpeedPaymentUrl}
             onChange={(e) => setLatpeedPaymentUrl(e.target.value)}
             placeholder="https://latpeed.com/..."
-            style={inputStyle}
+            style={{ ...inputStyle, borderColor: latpeedPaymentUrl ? "var(--forest)" : "#dc2626" }}
           />
+          <span style={{ fontSize: 11, color: "#dc2626", marginTop: 2 }}>
+            승인 시 신청자에게 SMS로 발송됨. 비어 있으면 발송 안 됨.
+          </span>
         </div>
       </div>
 
@@ -375,6 +391,61 @@ export default function CohortForm({ mode, cohort }: Props) {
             onChange={(e) => setSpecialFeatures(e.target.value)}
             placeholder="크리스마스 특집, 파티 포함"
             style={inputStyle}
+          />
+        </div>
+      </div>
+
+      {/* 폼 문구 / 메시지 */}
+      <div style={sectionStyle}>
+        <div style={sectionTitleStyle}>폼 문구 / 메시지 (선택)</div>
+        <div style={{ ...fieldStyle }}>
+          <label style={labelStyle}>승인 SMS 템플릿</label>
+          <textarea
+            value={approvedSmsTemplate}
+            onChange={(e) => setApprovedSmsTemplate(e.target.value)}
+            rows={8}
+            placeholder={"변수 사용 가능: {{name}} {{cohort_name}} {{payment_url}} {{deadline}}"}
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+        </div>
+        <div style={{ ...fieldStyle, marginTop: 16 }}>
+          <label style={labelStyle}>폼 상단 인트로 문구</label>
+          <textarea
+            value={applyIntroText}
+            onChange={(e) => setApplyIntroText(e.target.value)}
+            rows={2}
+            placeholder="신청 폼 맨 위에 표시되는 부제"
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+        </div>
+        <div style={{ ...fieldStyle, marginTop: 16 }}>
+          <label style={labelStyle}>음성 자소 도움말</label>
+          <textarea
+            value={voiceIntroHelp}
+            onChange={(e) => setVoiceIntroHelp(e.target.value)}
+            rows={4}
+            placeholder="음성 자기소개 필드 아래 설명 문구"
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+        </div>
+        <div style={{ ...fieldStyle, marginTop: 16 }}>
+          <label style={labelStyle}>얼굴 사진 도움말</label>
+          <textarea
+            value={photoHelp}
+            onChange={(e) => setPhotoHelp(e.target.value)}
+            rows={3}
+            placeholder="얼굴 사진 필드 아래 설명 문구"
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+        </div>
+        <div style={{ ...fieldStyle, marginTop: 16 }}>
+          <label style={labelStyle}>지원 동기 프롬프트</label>
+          <textarea
+            value={motivationPrompt}
+            onChange={(e) => setMotivationPrompt(e.target.value)}
+            rows={2}
+            placeholder="textarea placeholder로 표시"
+            style={{ ...inputStyle, resize: "vertical" }}
           />
         </div>
       </div>
