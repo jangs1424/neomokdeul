@@ -50,6 +50,7 @@ export {
   createCohort,
   updateCohort,
   listMatchings,
+  getMatchingForApplication,
   createMatching,
   updateMatching,
   listExclusions,

@@ -366,6 +366,24 @@ function rowToMatching(r: MatchingRow): Matching {
   };
 }
 
+export async function getMatchingForApplication(
+  applicationId: string,
+  round: 1 | 2,
+): Promise<Matching | null> {
+  const sb = getSupabaseAdmin();
+  const { data, error } = await sb
+    .from('matchings')
+    .select('*')
+    .eq('round', round)
+    .or(`male_application_id.eq.${applicationId},female_application_id.eq.${applicationId}`)
+    .neq('status', 'superseded')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`[getMatchingForApplication] ${error.message}`);
+  return data ? rowToMatching(data as MatchingRow) : null;
+}
+
 export async function listMatchings(cohortId: string): Promise<Matching[]> {
   const { data, error } = await getSupabaseAdmin()
     .from('matchings')
