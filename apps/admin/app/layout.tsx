@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
-import { Nanum_Myeongjo, IBM_Plex_Sans_KR } from "next/font/google";
+import { IBM_Plex_Sans_KR } from "next/font/google";
 import "./globals.css";
-
-const nanumMyeongjo = Nanum_Myeongjo({
-  subsets: ["latin"],
-  weight: ["400", "700", "800"],
-  variable: "--font-serif",
-  display: "swap",
-});
+import { AdminShell } from "./AdminShell";
 
 const ibmPlexSansKr = IBM_Plex_Sans_KR({
   subsets: ["latin"],
@@ -27,8 +21,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko" className={`${nanumMyeongjo.variable} ${ibmPlexSansKr.variable}`}>
-      <body>{children}</body>
+    <html lang="ko" className={ibmPlexSansKr.variable}>
+      <body>
+        <AdminShell>{children}</AdminShell>
+      </body>
     </html>
   );
 }

@@ -32,10 +32,10 @@ function datetimeLocalToISO(local: string): string {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "8px 10px",
-  borderRadius: 8,
-  border: "1px solid var(--forest)",
+  borderRadius: 6,
+  border: "1px solid var(--border-strong)",
   fontSize: 14,
-  color: "var(--ink)",
+  color: "var(--text)",
   background: "#fff",
   boxSizing: "border-box",
   outline: "none",
@@ -45,7 +45,7 @@ const labelStyle: React.CSSProperties = {
   display: "block",
   fontSize: 12,
   fontWeight: 600,
-  color: "var(--sub)",
+  color: "var(--text-muted)",
   marginBottom: 4,
   textTransform: "uppercase",
   letterSpacing: "0.04em",
@@ -58,7 +58,7 @@ const fieldStyle: React.CSSProperties = {
 };
 
 const sectionStyle: React.CSSProperties = {
-  borderTop: "1px solid var(--line)",
+  borderTop: "1px solid var(--border)",
   paddingTop: 20,
   marginTop: 20,
 };
@@ -66,7 +66,7 @@ const sectionStyle: React.CSSProperties = {
 const sectionTitleStyle: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 700,
-  color: "var(--forest)",
+  color: "var(--text)",
   marginBottom: 16,
   letterSpacing: "0.02em",
 };
@@ -335,16 +335,16 @@ export default function CohortForm({ mode, cohort }: Props) {
         </div>
         <div style={{ ...fieldStyle, marginTop: 16 }}>
           <label style={labelStyle}>
-            Latpeed 결제 URL <span style={{ color: "#dc2626" }}>*</span>
+            Latpeed 결제 URL <span style={{ color: "var(--danger)" }}>*</span>
           </label>
           <input
             type="url"
             value={latpeedPaymentUrl}
             onChange={(e) => setLatpeedPaymentUrl(e.target.value)}
             placeholder="https://latpeed.com/..."
-            style={{ ...inputStyle, borderColor: latpeedPaymentUrl ? "var(--forest)" : "#dc2626" }}
+            style={{ ...inputStyle, borderColor: latpeedPaymentUrl ? "var(--border-strong)" : "var(--danger)" }}
           />
-          <span style={{ fontSize: 11, color: "#dc2626", marginTop: 2 }}>
+          <span style={{ fontSize: 11, color: "var(--danger)", marginTop: 2 }}>
             승인 시 신청자에게 SMS로 발송됨. 비어 있으면 발송 안 됨.
           </span>
         </div>
@@ -457,7 +457,7 @@ export default function CohortForm({ mode, cohort }: Props) {
             marginTop: 20,
             padding: "10px 14px",
             borderRadius: 8,
-            background: "#fee2e2",
+            background: "var(--danger-soft)",
             color: "#991b1b",
             fontSize: 13,
             border: "1px solid #fca5a5",
@@ -467,6 +467,26 @@ export default function CohortForm({ mode, cohort }: Props) {
         </div>
       )}
 
+      {/* Auto-transition note */}
+      <div
+        style={{
+          marginTop: 24,
+          padding: "10px 14px",
+          borderRadius: 8,
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          fontSize: 12,
+          color: "var(--text-muted)",
+          lineHeight: 1.6,
+        }}
+      >
+        <strong style={{ color: "var(--text)", fontWeight: 600 }}>자동 상태 전이:</strong>{" "}
+        모집 마감일 지나면 <code style={{ fontSize: 11, background: "var(--surface-2)", padding: "1px 4px", borderRadius: 3 }}>closed</code>,
+        프로그램 시작일부터 <code style={{ fontSize: 11, background: "var(--surface-2)", padding: "1px 4px", borderRadius: 3 }}>running</code>,
+        종료일 이후 <code style={{ fontSize: 11, background: "var(--surface-2)", padding: "1px 4px", borderRadius: 3 }}>completed</code>{" "}
+        — 언제든 수동으로 override 가능.
+      </div>
+
       {/* Actions */}
       <div
         style={{
@@ -475,7 +495,7 @@ export default function CohortForm({ mode, cohort }: Props) {
           alignItems: "center",
           marginTop: 28,
           paddingTop: 20,
-          borderTop: "1px solid var(--line)",
+          borderTop: "1px solid var(--border)",
         }}
       >
         <button
@@ -484,7 +504,7 @@ export default function CohortForm({ mode, cohort }: Props) {
           style={{
             padding: "8px 22px",
             borderRadius: 8,
-            background: submitting ? "#6b9e7a" : "var(--forest)",
+            background: submitting ? "var(--text-soft)" : "var(--accent)",
             color: "#fff",
             fontSize: 14,
             fontWeight: 600,
@@ -504,11 +524,11 @@ export default function CohortForm({ mode, cohort }: Props) {
             padding: "8px 16px",
             borderRadius: 8,
             background: "transparent",
-            color: "var(--sub)",
+            color: "var(--text-muted)",
             fontSize: 14,
             fontWeight: 500,
             textDecoration: "none",
-            border: "1px solid var(--line)",
+            border: "1px solid var(--border)",
           }}
         >
           취소

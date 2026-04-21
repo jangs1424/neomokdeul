@@ -53,3 +53,32 @@ export interface Cohort {
   photoHelp?: string;
   motivationPrompt?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Matching (Phase 5)
+// ---------------------------------------------------------------------------
+export type MatchingStatus = 'draft' | 'published' | 'superseded';
+
+export interface Matching {
+  id: string;
+  cohortId: string;
+  round: 1 | 2;
+  maleApplicationId: string;
+  femaleApplicationId: string;
+  score?: number;
+  reasoning?: string;
+  status: MatchingStatus;
+  supersededBy?: string;
+  publishedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Exclusion {
+  id: string;
+  phoneA: string;
+  phoneB: string;
+  reason?: string;
+  sourceCohortId?: string;
+  createdAt: string;
+}

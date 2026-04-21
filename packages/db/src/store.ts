@@ -5,6 +5,9 @@ import type {
   ApplicationStatus,
   Cohort,
   CohortStatus,
+  Matching,
+  MatchingStatus,
+  Exclusion,
 } from './schema';
 
 // ---------------------------------------------------------------------------
@@ -319,4 +322,168 @@ export async function updateCohort(
     .maybeSingle();
   if (error) throw new Error(`[updateCohort] ${error.message}`);
   return data ? rowToCohort(data as CohortRow) : null;
+}
+
+// ---------------------------------------------------------------------------
+// Matchings (Phase 5)
+// ---------------------------------------------------------------------------
+type MatchingRow = {
+  id: string;
+  cohort_id: string;
+  round: 1 | 2;
+  male_application_id: string;
+  female_application_id: string;
+  score: number | string | null;
+  reasoning: string | null;
+  status: MatchingStatus;
+  superseded_by: string | null;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function rowToMatching(r: MatchingRow): Matching {
+  const rawScore = r.score;
+  const scoreNum =
+    rawScore === null || rawScore === undefined
+      ? undefined
+      : typeof rawScore === 'number'
+        ? rawScore
+        : Number(rawScore);
+  return {
+    id: r.id,
+    cohortId: r.cohort_id,
+    round: r.round,
+    maleApplicationId: r.male_application_id,
+    femaleApplicationId: r.female_application_id,
+    score: scoreNum === undefined || Number.isNaN(scoreNum) ? undefined : scoreNum,
+    reasoning: r.reasoning ?? undefined,
+    status: r.status,
+    supersededBy: r.superseded_by ?? undefined,
+    publishedAt: r.published_at ?? undefined,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+export async function listMatchings(cohortId: string): Promise<Matching[]> {
+  const { data, error } = await getSupabaseAdmin()
+    .from('matchings')
+    .select('*')
+    .eq('cohort_id', cohortId)
+    .order('round', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error) throw new Error(`[listMatchings] ${error.message}`);
+  return (data ?? []).map((r) => rowToMatching(r as MatchingRow));
+}
+
+export async function createMatching(
+  input: Omit<
+    Matching,
+    'id' | 'createdAt' | 'updatedAt' | 'publishedAt' | 'supersededBy' | 'status'
+  > & { status?: MatchingStatus },
+): Promise<Matching> {
+  const row: Partial<MatchingRow> = {
+    cohort_id: input.cohortId,
+    round: input.round,
+    male_application_id: input.maleApplicationId,
+    female_application_id: input.femaleApplicationId,
+    score: input.score ?? null,
+    reasoning: input.reasoning ?? null,
+    status: input.status ?? 'draft',
+  };
+
+  const { data, error } = await getSupabaseAdmin()
+    .from('matchings')
+    .insert(row)
+    .select('*')
+    .single();
+  if (error) throw new Error(`[createMatching] ${error.message}`);
+  return rowToMatching(data as MatchingRow);
+}
+
+export async function updateMatching(
+  id: string,
+  patch: Partial<Matching>,
+): Promise<Matching | null> {
+  const row: Partial<MatchingRow> = {};
+  if (patch.cohortId !== undefined) row.cohort_id = patch.cohortId;
+  if (patch.round !== undefined) row.round = patch.round;
+  if (patch.maleApplicationId !== undefined)
+    row.male_application_id = patch.maleApplicationId;
+  if (patch.femaleApplicationId !== undefined)
+    row.female_application_id = patch.femaleApplicationId;
+  if (patch.score !== undefined) row.score = patch.score ?? null;
+  if (patch.reasoning !== undefined) row.reasoning = patch.reasoning ?? null;
+  if (patch.status !== undefined) row.status = patch.status;
+  if (patch.supersededBy !== undefined)
+    row.superseded_by = patch.supersededBy ?? null;
+  if (patch.publishedAt !== undefined)
+    row.published_at = patch.publishedAt ?? null;
+
+  const { data, error } = await getSupabaseAdmin()
+    .from('matchings')
+    .update(row)
+    .eq('id', id)
+    .select('*')
+    .maybeSingle();
+  if (error) throw new Error(`[updateMatching] ${error.message}`);
+  return data ? rowToMatching(data as MatchingRow) : null;
+}
+
+// ---------------------------------------------------------------------------
+// Exclusions
+// ---------------------------------------------------------------------------
+type ExclusionRow = {
+  id: string;
+  phone_a: string;
+  phone_b: string;
+  reason: string | null;
+  source_cohort_id: string | null;
+  created_at: string;
+};
+
+function rowToExclusion(r: ExclusionRow): Exclusion {
+  return {
+    id: r.id,
+    phoneA: r.phone_a,
+    phoneB: r.phone_b,
+    reason: r.reason ?? undefined,
+    sourceCohortId: r.source_cohort_id ?? undefined,
+    createdAt: r.created_at,
+  };
+}
+
+export async function listExclusions(): Promise<Exclusion[]> {
+  const { data, error } = await getSupabaseAdmin()
+    .from('exclusions')
+    .select('*');
+  if (error) throw new Error(`[listExclusions] ${error.message}`);
+  return (data ?? []).map((r) => rowToExclusion(r as ExclusionRow));
+}
+
+export async function addExclusion(
+  phoneA: string,
+  phoneB: string,
+  reason?: string,
+  cohortId?: string,
+): Promise<void> {
+  // Normalize: a < b lexicographically
+  const [a, b] = phoneA < phoneB ? [phoneA, phoneB] : [phoneB, phoneA];
+  if (a === b) return; // self-pair: ignore
+
+  const { error } = await getSupabaseAdmin()
+    .from('exclusions')
+    .insert({
+      phone_a: a,
+      phone_b: b,
+      reason: reason ?? null,
+      source_cohort_id: cohortId ?? null,
+    });
+
+  if (error) {
+    // 23505 = unique violation → silently ignore (idempotent)
+    if (error.code === '23505') return;
+    throw new Error(`[addExclusion] ${error.message}`);
+  }
 }
