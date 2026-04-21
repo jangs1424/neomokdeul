@@ -7,6 +7,7 @@ import { ActionButtons } from "./ActionButtons";
 
 const navItems = [
   { label: "신청 관리", href: "/" },
+  { label: "기수 관리", href: "/cohorts" },
   { label: "매칭 실행", href: "#" },
   { label: "참가자", href: "#" },
   { label: "블랙리스트", href: "#" },
@@ -34,6 +35,43 @@ const STATUS_STYLE: Record<string, React.CSSProperties> = {
     color: "#991b1b",
   },
 };
+
+function DetailField({
+  label,
+  value,
+  multiline,
+}: {
+  label: string;
+  value: string;
+  multiline?: boolean;
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          color: "var(--sub)",
+          fontSize: 11,
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          fontWeight: 600,
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 13,
+          lineHeight: multiline ? 1.7 : 1.4,
+          color: "var(--ink)",
+          whiteSpace: multiline ? "pre-wrap" : "normal",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
 
 function StatusPill({ status }: { status: string }) {
   return (
@@ -209,7 +247,7 @@ export default async function Page({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "80px 80px 60px 60px 130px 90px 140px 1fr",
+                gridTemplateColumns: "72px 70px 44px 50px 120px 90px 80px 110px 1fr",
                 padding: "10px 12px",
                 background: "var(--cream)",
                 borderBottom: "1px solid var(--line)",
@@ -226,7 +264,8 @@ export default async function Page({
               <span>성별</span>
               <span>년생</span>
               <span>전화</span>
-              <span>유입경로</span>
+              <span>직업</span>
+              <span>MBTI</span>
               <span>신청일시</span>
               <span>액션</span>
             </div>
@@ -236,7 +275,7 @@ export default async function Page({
                 <summary
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "80px 80px 60px 60px 130px 90px 140px 1fr",
+                    gridTemplateColumns: "72px 70px 44px 50px 120px 90px 80px 110px 1fr",
                     padding: "12px 12px",
                     borderBottom: "1px solid var(--line)",
                     fontSize: 13,
@@ -256,7 +295,8 @@ export default async function Page({
                   </span>
                   <span style={{ color: "var(--sub)" }}>{app.birthYear}</span>
                   <span style={{ color: "var(--sub)", fontSize: 12 }}>{app.phone}</span>
-                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{app.source}</span>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{app.occupation}</span>
+                  <span style={{ color: "var(--sub)", fontSize: 12 }}>{app.mbti ?? "—"}</span>
                   <span style={{ color: "var(--sub)", fontSize: 12 }}>{formatDate(app.createdAt)}</span>
                   <span>
                     {app.status === "pending" ? (
@@ -270,17 +310,29 @@ export default async function Page({
                 </summary>
                 <div
                   style={{
-                    padding: "12px 20px 16px",
+                    padding: "16px 20px 20px",
                     background: "var(--cream-2)",
                     borderBottom: "1px solid var(--line)",
                     fontSize: 13,
                     color: "var(--ink)",
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "16px 32px",
                   }}
                 >
-                  <strong style={{ color: "var(--sub)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    지원 동기
-                  </strong>
-                  <p style={{ margin: "6px 0 0", lineHeight: 1.7 }}>{app.motivation}</p>
+                  <DetailField label="거주 지역" value={app.region} />
+                  <DetailField label="유입경로" value={app.source} />
+                  <DetailField
+                    label="통화 가능 시간대"
+                    value={app.callTimes?.length ? app.callTimes.join(" · ") : "—"}
+                  />
+                  <DetailField
+                    label="이전 기수 참여"
+                    value={app.previousCohort ? "있음" : "없음"}
+                  />
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <DetailField label="지원 동기" value={app.motivation} multiline />
+                  </div>
                 </div>
               </details>
             ))}
