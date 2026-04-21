@@ -1,13 +1,11 @@
 /**
- * SMS client — STUB implementation + shared send pipeline.
+ * SMS client — real Solapi integration with graceful stub fallback.
  *
- * Real Solapi integration will replace `sendSms`. The signature is stable:
- * callers import { sendSms } and get back { ok, providerMessageId?, error? }.
- *
- * Current behavior: 200ms simulated delay, 80% success / 20% failure so the
- * failure + retry path is exercised during development.
+ * If SOLAPI_API_KEY/SECRET/SENDER_PHONE env vars are all set, messages go
+ * through Solapi. Otherwise we fall back to the dev stub (80% ok / 20% fail).
  */
 import { getApplication, getCohort, getSupabaseAdmin } from "@neomokdeul/db";
+import { isConfigured as solapiConfigured, solapiSend } from "./solapi";
 
 export interface SendSmsResult {
   ok: boolean;
@@ -16,9 +14,19 @@ export interface SendSmsResult {
 }
 
 export async function sendSms(phone: string, body: string): Promise<SendSmsResult> {
+  if (solapiConfigured) {
+    const r = await solapiSend(phone, body);
+    if (r.ok) {
+      console.log("[SMS solapi →]", phone, "id=", r.providerMessageId);
+    } else {
+      console.error("[SMS solapi ✗]", phone, r.error);
+    }
+    return { ok: r.ok, providerMessageId: r.providerMessageId, error: r.error };
+  }
+
   await new Promise((r) => setTimeout(r, 200));
   if (Math.random() < 0.2) {
-    return { ok: false, error: "simulated network failure" };
+    return { ok: false, error: "simulated network failure (solapi not configured)" };
   }
   console.log("[SMS stub →]", phone, "\n", body, "\n---");
   return { ok: true, providerMessageId: "stub-" + Date.now() };
