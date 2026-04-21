@@ -108,6 +108,12 @@ importers:
 
   apps/webapp:
     dependencies:
+      '@neomokdeul/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@neomokdeul/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       next:
         specifier: ^15.0.0
         version: 15.5.15(react-dom@19.2.5(react@19.2.5))(react@19.2.5)

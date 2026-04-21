@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
+  transpilePackages: ["@neomokdeul/db", "@neomokdeul/ui"],
 };
 
 export default nextConfig;

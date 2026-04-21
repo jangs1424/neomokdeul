@@ -1,75 +1,105 @@
-export default function DashboardPage() {
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { verifyToken } from '../lib/token';
+import { getApplication, getCohort, getMatchingForApplication } from '@neomokdeul/db';
+import { computeProgramDay } from '../lib/program';
+import { getMission } from '../lib/missions';
+import { DayHeader } from './DayHeader';
+import { PartnerCard } from './PartnerCard';
+import { MissionCard } from './MissionCard';
+
+export const dynamic = 'force-dynamic';
+
+export default async function HomePage() {
+  const jar = await cookies();
+  const token = jar.get('socially_session')?.value;
+  if (!token) redirect('/expired');
+
+  const payload = verifyToken(token);
+  if (!payload) redirect('/expired');
+
+  const [me, cohort] = await Promise.all([
+    getApplication(payload.appId),
+    getCohort(payload.cohortId),
+  ]);
+  if (!me || !cohort) redirect('/expired');
+
+  const p = computeProgramDay(cohort.programStartDate, cohort.programEndDate);
+
+  // Resolve current round as 1 | 2 (final counts as round 2 for partner display)
+  const currentRound: 1 | 2 = p.round === 1 ? 1 : 2;
+
+  // Fetch matching for this participant in the current round
+  const matching = await getMatchingForApplication(me.id, currentRound);
+  const published = !!matching && matching.status === 'published';
+
+  let partnerApp = null;
+  if (matching) {
+    const partnerId =
+      matching.maleApplicationId === me.id
+        ? matching.femaleApplicationId
+        : matching.maleApplicationId;
+    partnerApp = await getApplication(partnerId);
+  }
+
+  // Mission day: clamp to 1..8
+  const missionDay = p.isBeforeStart
+    ? 1
+    : p.isAfterEnd
+      ? 8
+      : Math.max(1, Math.min(8, p.day));
+
+  const mission = getMission(missionDay) ?? getMission(1)!;
+
   return (
-    <main className="min-h-screen bg-cream px-6 py-10 md:px-12 md:py-16">
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-10">
-        {/* Day pill */}
-        <div className="flex items-center justify-between">
-          <span className="inline-flex items-center rounded-full bg-forest px-4 py-1.5 text-sm font-semibold tracking-wide text-cream">
-            DAY 3 / 8
-          </span>
-          <span className="font-hand text-xl text-sub">
-            너의 목소리가 들려
-          </span>
-        </div>
+    <main
+      style={{
+        maxWidth: 480,
+        margin: '0 auto',
+        minHeight: '100vh',
+        background: 'var(--bg)',
+      }}
+    >
+      <DayHeader cohort={cohort} />
 
-        {/* Title */}
-        <header className="flex flex-col gap-3">
-          <h1 className="font-serif text-5xl font-bold leading-tight text-ink md:text-6xl">
-            오늘의 미션.
-          </h1>
-          <p className="text-base text-sub">
-            천천히 읽고, 마음이 움직일 때 문을 열어보세요.
-          </p>
-        </header>
+      <PartnerCard
+        partnerApp={partnerApp}
+        round={currentRound}
+        published={published}
+      />
 
-        {/* Mission card */}
-        <section className="rounded-2xl border-2 border-forest bg-cream-2 p-8 shadow-sm">
-          <div className="mb-4 text-xs font-semibold uppercase tracking-widest text-forest">
-            Mission · Day 3
-          </div>
-          <p className="font-serif text-2xl leading-relaxed text-ink md:text-3xl">
-            서로에게 &lsquo;가장 좋아하는 노래 한 곡&rsquo;을 추천해주세요.
-            그 노래에 얽힌 이야기까지 곁들이면 더 좋아요.
-          </p>
-          <div className="mt-8">
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-full bg-yellow px-6 py-3 text-base font-semibold text-ink transition hover:brightness-95"
-            >
-              힌트 열기 →
-            </button>
-          </div>
-        </section>
+      <MissionCard mission={mission} />
 
-        {/* Partner card */}
-        <section className="rounded-2xl border border-forest/30 bg-cream-2/60 p-6">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-sub">
-            Partner
-          </div>
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-col">
-              <span className="text-sm text-sub">파트너</span>
-              <span className="font-serif text-2xl text-ink">
-                @익명의_아메리카노
-              </span>
-            </div>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-full border-2 border-forest px-5 py-2.5 text-sm font-semibold text-forest transition hover:bg-forest hover:text-cream"
-            >
-              통화 예약하기
-            </button>
-          </div>
-        </section>
-
-        {/* Countdown */}
-        <footer className="flex items-center justify-between pt-4">
-          <span className="inline-flex items-center gap-2 rounded-full bg-forest-dark px-4 py-1.5 text-sm font-semibold text-cream">
-            <span className="h-2 w-2 rounded-full bg-yellow" />
-            D-5
-          </span>
-          <span className="text-xs text-sub">여정 종료까지</span>
-        </footer>
+      <div style={{ padding: '16px 20px 32px' }}>
+        <a
+          href="#"
+          style={{
+            display: 'block',
+            padding: '14px 16px',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            textAlign: 'center',
+            fontSize: 14,
+            color: 'var(--sub)',
+            textDecoration: 'none',
+          }}
+        >
+          매칭 파트너와 오픈채팅하기 →
+        </a>
+        <p
+          style={{
+            fontSize: 11,
+            color: 'var(--sub)',
+            textAlign: 'center',
+            marginTop: 10,
+            lineHeight: 1.6,
+          }}
+        >
+          {me.name}님 · {cohort.name}
+          <br />
+          SMS로 받은 링크를 통해 접속 중이에요.
+        </p>
       </div>
     </main>
   );
