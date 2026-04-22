@@ -127,25 +127,10 @@ function heuristicScore(slotOverlap: number): {
 }
 
 // ---------------------------------------------------------------------------
-// Score a single pair (LLM or fallback)
+// Cost cap — LLM never called more than this many times per matching run.
+// 30 pairs × 2 rounds = 60 calls × Haiku ~$0.0004 = ~$0.024/run worst case.
 // ---------------------------------------------------------------------------
-async function scoreOnePair(
-  mr: MatchResponse,
-  fr: MatchResponse,
-  slotOverlap: number,
-): Promise<{ score: number; reasoning: string }> {
-  if (!claudeConfigured) return heuristicScore(slotOverlap);
-  try {
-    const llm = await scorePairWithLlm(mr, fr, slotOverlap);
-    return {
-      score: Math.round(llm.score * 100) / 100,
-      reasoning: llm.reasoning,
-    };
-  } catch (err) {
-    console.error("[matching/run] Claude scoring failed, falling back:", err);
-    return heuristicScore(slotOverlap);
-  }
-}
+const MAX_LLM_CALLS_PER_ROUND = 30;
 
 // ---------------------------------------------------------------------------
 // Candidate list builder + greedy pairing
@@ -154,10 +139,22 @@ async function scoreOnePair(
 type Candidate = {
   maleId: string;
   femaleId: string;
+  mr: MatchResponse;
+  fr: MatchResponse;
+  overlap: number;
   score: number;
   reasoning: string;
 };
 
+/**
+ * Cost-controlled pairing:
+ *   1. Build all eligible candidates with cheap heuristic scores
+ *   2. Greedy pair by heuristic (this is the FINAL pair set)
+ *   3. LLM-rescore ONLY the final pairs (in parallel) — at most
+ *      MAX_LLM_CALLS_PER_ROUND calls per round.
+ *
+ * This avoids the N² LLM call disaster of the previous implementation.
+ */
 async function buildAndPair(
   males: Application[],
   females: Application[],
@@ -165,7 +162,8 @@ async function buildAndPair(
   dateSet: Set<string>,
   exclusionSet: Set<string>,
   avoid: Map<string, Set<string>> | undefined,
-): Promise<{ pairs: Candidate[]; skippedLowOverlap: number }> {
+): Promise<{ pairs: Candidate[]; skippedLowOverlap: number; llmCalls: number }> {
+  // ---- Step 1: build heuristic candidates ----
   const candidates: Candidate[] = [];
   let skippedLowOverlap = 0;
 
@@ -177,36 +175,33 @@ async function buildAndPair(
       const fr = responseByAppId.get(f.id);
       if (!fr) continue;
 
-      // Gate 1: gender preference
       if (!genderPrefsOk(mr, fr)) continue;
 
-      // Gate 3: exclusion
       const [a, b] = normalizePhonePair(m.phone, f.phone);
       if (exclusionSet.has(`${a}|${b}`)) continue;
 
-      // Gate 4: round-1 avoid (round 2 only)
       if (avoid?.get(m.id)?.has(f.id)) continue;
 
-      // Gate 2: slot overlap in round
       const overlap = roundSlotOverlap(mr, fr, dateSet);
       if (overlap < 2) {
         skippedLowOverlap++;
         continue;
       }
 
-      // Score (LLM or fallback). Run sequentially to stay well within rate
-      // limits for realistic pool sizes (~15 * 15 = 225 pairs worst case).
-      const { score, reasoning } = await scoreOnePair(mr, fr, overlap);
-
+      const heur = heuristicScore(overlap);
       candidates.push({
         maleId: m.id,
         femaleId: f.id,
-        score,
-        reasoning,
+        mr,
+        fr,
+        overlap,
+        score: heur.score,
+        reasoning: heur.reasoning,
       });
     }
   }
 
+  // ---- Step 2: greedy pair by heuristic score ----
   candidates.sort((x, y) => y.score - x.score);
 
   const usedMale = new Set<string>();
@@ -220,7 +215,28 @@ async function buildAndPair(
     pairs.push(c);
   }
 
-  return { pairs, skippedLowOverlap };
+  // ---- Step 3: LLM-rescore final pairs (in parallel, capped) ----
+  let llmCalls = 0;
+  if (claudeConfigured && pairs.length > 0) {
+    const toScore = pairs.slice(0, MAX_LLM_CALLS_PER_ROUND);
+    const results = await Promise.allSettled(
+      toScore.map((p) => scorePairWithLlm(p.mr, p.fr, p.overlap)),
+    );
+    for (let i = 0; i < toScore.length; i++) {
+      const res = results[i];
+      llmCalls++;
+      if (res.status === "fulfilled") {
+        toScore[i].score = Math.round(res.value.score * 100) / 100;
+        toScore[i].reasoning = res.value.reasoning;
+      } else {
+        console.error("[matching/run] LLM call failed for pair", i, ":", res.reason);
+        // keep heuristic; mark in reasoning
+        toScore[i].reasoning = `${toScore[i].reasoning} · LLM 실패`;
+      }
+    }
+  }
+
+  return { pairs, skippedLowOverlap, llmCalls };
 }
 
 // ---------------------------------------------------------------------------
@@ -278,6 +294,7 @@ export async function POST(req: Request) {
 
   const counts: Record<string, number> = { round1: 0, round2: 0 };
   let totalSkippedLowOverlap = 0;
+  let totalLlmCalls = 0;
 
   for (const round of rounds) {
     // 1. Delete existing draft rows for this round (idempotent rerun)
@@ -326,7 +343,7 @@ export async function POST(req: Request) {
     const dateSet = new Set(dateList);
 
     // 5. Build candidates + greedy pair
-    const { pairs, skippedLowOverlap } = await buildAndPair(
+    const { pairs, skippedLowOverlap, llmCalls } = await buildAndPair(
       pairableMales,
       pairableFemales,
       responseByAppId,
@@ -335,6 +352,7 @@ export async function POST(req: Request) {
       avoid,
     );
     totalSkippedLowOverlap += skippedLowOverlap;
+    totalLlmCalls += llmCalls;
 
     // 6. Insert drafts
     for (const p of pairs) {
@@ -361,6 +379,8 @@ export async function POST(req: Request) {
     round1: counts.round1 ?? 0,
     round2: counts.round2 ?? 0,
     skippedLowOverlap: totalSkippedLowOverlap,
-    llmMode: claudeConfigured ? "claude" : "heuristic",
+    llmMode: claudeConfigured ? "claude-haiku-4.5" : "heuristic",
+    llmCalls: totalLlmCalls,
+    estCostUsd: Number((totalLlmCalls * 0.0004).toFixed(4)),
   });
 }
