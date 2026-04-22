@@ -59,6 +59,7 @@ export {
   addExclusion,
   getMatchResponseByApplication,
   listMatchResponses,
+  listAllMatchResponses,
   upsertMatchResponse,
 } from './store';
 export { getSupabaseAdmin } from './supabase';

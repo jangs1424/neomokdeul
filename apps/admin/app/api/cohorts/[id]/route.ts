@@ -47,6 +47,17 @@ export async function PATCH(
     if (body.specialFeatures !== undefined) {
       patch.specialFeatures = Array.isArray(body.specialFeatures) ? body.specialFeatures : [];
     }
+    if (body.approvedSmsTemplate !== undefined) patch.approvedSmsTemplate = body.approvedSmsTemplate || undefined;
+    if (body.applyIntroText !== undefined) patch.applyIntroText = body.applyIntroText || undefined;
+    if (body.voiceIntroHelp !== undefined) patch.voiceIntroHelp = body.voiceIntroHelp || undefined;
+    if (body.photoHelp !== undefined) patch.photoHelp = body.photoHelp || undefined;
+    if (body.motivationPrompt !== undefined) patch.motivationPrompt = body.motivationPrompt || undefined;
+    if (body.matchFormClosesAt !== undefined) patch.matchFormClosesAt = body.matchFormClosesAt || undefined;
+    if (body.matchDay1Prompt !== undefined) patch.matchDay1Prompt = body.matchDay1Prompt || undefined;
+    if (body.matchDay2Prompt !== undefined) patch.matchDay2Prompt = body.matchDay2Prompt || undefined;
+    if (body.matchDay3Prompt !== undefined) patch.matchDay3Prompt = body.matchDay3Prompt || undefined;
+    if (body.matchDay4Prompt !== undefined) patch.matchDay4Prompt = body.matchDay4Prompt || undefined;
+    if (body.matchDay5Prompt !== undefined) patch.matchDay5Prompt = body.matchDay5Prompt || undefined;
 
     const updated = await updateCohort(id, patch);
     if (!updated) {

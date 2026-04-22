@@ -1,34 +1,48 @@
 import { NextResponse } from "next/server";
 import {
   getSupabaseAdmin,
+  getCohort,
   listApplications,
   listExclusions,
   listMatchResponses,
   listMatchings,
   createMatching,
   type Application,
+  type Cohort,
   type MatchResponse,
   type Matching,
 } from "@neomokdeul/db";
+import { claudeConfigured, scorePairWithLlm } from "../../../../lib/claude";
 
 // -----------------------------------------------------------------------------
-// Matching algorithm — Phase 11-B rewrite.
+// Matching algorithm — Phase 12 rewrite.
 //
-// Pool: applications where status='approved' AND a match_response row exists
-// for that applicationId. The heuristic uses the match_response fields
-// (callTimes, conv*, values*, region, mbti) — NOT the application form.
+// Pool: applications where status='approved' AND a match_response row exists.
 //
-// Weighted score (0..1):
-//   0.30 callTimeOverlap
-//   0.25 convStyleComplement   (actually similarity, for MVP)
-//   0.25 valuesAlignment       (cosine similarity, scaled to 0..1)
-//   0.10 regionProximity
-//   0.10 mbtiCompat
+// Rounds:
+//   Round 1 → program Day 2..Day 4  (programStartDate +1 .. +3, inclusive)
+//   Round 2 → program Day 5..Day 7  (programStartDate +4 .. +6, inclusive)
 //
-// TODO(phase-12+): replace scorePair() with a Claude reasoning pass that
-// consumes both applicants' day-by-day answers + motivation and produces
-// `{ score, reasoning }`. Keep the greedy pairing harness as-is — only the
-// per-pair scorer needs to be swapped in.
+// Per-pair eligibility (hard gates):
+//   1. Gender preference compatible:
+//        m.matchGender ∈ {opposite, any} AND
+//        f.matchGender ∈ {opposite, any}
+//   2. Slot overlap in round's date range ≥ 2
+//      (count of identical "YYYY-MM-DD_HH-HH" strings whose YYYY-MM-DD is in
+//      the round's date list)
+//   3. Exclusion pair (normalized phone) not present
+//   4. Round 2 only: (m, f) must not have a round-1 match
+//
+// Scoring:
+//   - If ANTHROPIC_API_KEY set → scorePairWithLlm (apps/admin/lib/claude.ts)
+//   - Else (or on Claude error) → fallback heuristic:
+//       score = 0.5 + min(slotOverlap, 4) / 8   (range 0.5 .. 1.0)
+//     reasoning: "LLM 미연동 · 슬롯 겹침 N개"
+//
+// Pairing: greedy by score desc, skip if either side used, respects avoid-map
+// for Round 2.
+//
+// Returns: { ok, cohortId, round1, round2, poolSize, skippedLowOverlap }
 // -----------------------------------------------------------------------------
 
 type RunBody = {
@@ -36,213 +50,159 @@ type RunBody = {
   round?: unknown;
 };
 
-const METRO_REGIONS = new Set(["서울", "경기도", "경기", "인천"]);
-
 function normalizePhonePair(a: string, b: string): [string, string] {
   return a < b ? [a, b] : [b, a];
 }
 
-// ---------------------------------------------------------------------------
-// Score components
-// ---------------------------------------------------------------------------
-
-function callTimeOverlap(mr: MatchResponse, fr: MatchResponse): { score: number; shared: number } {
-  const maleTimes = new Set(mr.callTimes ?? []);
-  const shared = (fr.callTimes ?? []).filter((t) => maleTimes.has(t)).length;
-  const maxLen = Math.max(
-    mr.callTimes?.length ?? 0,
-    fr.callTimes?.length ?? 0,
-  );
-  if (maxLen === 0) return { score: 0, shared: 0 };
-  return { score: shared / maxLen, shared };
-}
-
 /**
- * Per-dim similarity on 1..5 Likert: 1 - |m-f|/4 → 0..1. Missing dims skipped.
- * If no dims, returns 0.5 (neutral).
+ * Given a programStartDate like "2026-05-14" and a round (1 or 2), returns the
+ * list of "YYYY-MM-DD" date strings for that round.
+ *   Round 1 → start+1, start+2, start+3  (Day 2..4)
+ *   Round 2 → start+4, start+5, start+6  (Day 5..7)
  */
-function convStyleComplement(mr: MatchResponse, fr: MatchResponse): number {
-  const dims: [number | undefined, number | undefined][] = [
-    [mr.convEnergy, fr.convEnergy],
-    [mr.convThinking, fr.convThinking],
-    [mr.convPlanning, fr.convPlanning],
-    [mr.convPace, fr.convPace],
-    [mr.convDepth, fr.convDepth],
-  ];
-  const present = dims.filter(
-    ([a, b]) => typeof a === "number" && typeof b === "number",
-  ) as [number, number][];
-  if (present.length === 0) return 0.5;
-  const sum = present.reduce((acc, [a, b]) => acc + (1 - Math.abs(a - b) / 4), 0);
-  return sum / present.length;
-}
-
-/**
- * Cosine similarity on the 5-dim values vectors, mapped from [-1,1] to [0,1]
- * via (cos+1)/2. Missing dims default to 3 (neutral midpoint of 1..5 Likert).
- */
-function valuesAlignment(mr: MatchResponse, fr: MatchResponse): number {
-  const maleVec = [
-    mr.valuesMarriage ?? 3,
-    mr.valuesCareer ?? 3,
-    mr.valuesFamily ?? 3,
-    mr.valuesHobby ?? 3,
-    mr.valuesIndependence ?? 3,
-  ];
-  const femaleVec = [
-    fr.valuesMarriage ?? 3,
-    fr.valuesCareer ?? 3,
-    fr.valuesFamily ?? 3,
-    fr.valuesHobby ?? 3,
-    fr.valuesIndependence ?? 3,
-  ];
-  let dot = 0;
-  let mn = 0;
-  let fn = 0;
-  for (let i = 0; i < 5; i++) {
-    dot += maleVec[i] * femaleVec[i];
-    mn += maleVec[i] * maleVec[i];
-    fn += femaleVec[i] * femaleVec[i];
+function roundDateList(programStartDate: string, round: 1 | 2): string[] {
+  const out: string[] = [];
+  const start = new Date(programStartDate + "T00:00:00");
+  if (isNaN(start.getTime())) return out;
+  const offsets = round === 1 ? [1, 2, 3] : [4, 5, 6];
+  for (const off of offsets) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + off);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    out.push(`${y}-${m}-${day}`);
   }
-  if (mn === 0 || fn === 0) return 0.5;
-  const cos = dot / (Math.sqrt(mn) * Math.sqrt(fn));
-  return (cos + 1) / 2;
+  return out;
 }
 
-function regionProximity(mr: MatchResponse, fr: MatchResponse): number {
-  const m = (mr.region ?? "").trim();
-  const f = (fr.region ?? "").trim();
-  if (!m || !f) return 0.3;
-  if (m === f) return 1.0;
-  if (METRO_REGIONS.has(m) && METRO_REGIONS.has(f)) return 0.6;
-  return 0.3;
+/** "2026-05-15_18-22" → "2026-05-15" */
+function slotDate(slot: string): string | null {
+  const i = slot.indexOf("_");
+  return i > 0 ? slot.slice(0, i) : null;
 }
 
-function mbtiCompat(mr: MatchResponse, fr: MatchResponse): number {
-  const m = (mr.mbti ?? "").toUpperCase();
-  const f = (fr.mbti ?? "").toUpperCase();
-  if (m.length !== 4 || f.length !== 4) return 0.5;
-  let score = 0.3; // base
-  // I/E + N/S axis
-  if (m[0] === f[0] && m[1] === f[1]) score += 0.3;
-  // J/P
-  if (m[3] === f[3]) score += 0.2;
-  // T/F
-  if (m[2] === f[2]) score += 0.2;
-  return Math.min(1.0, score);
+/**
+ * Slot overlap within a round's date range. Both participants must have the
+ * identical slot string (date + hour range) for it to count.
+ */
+function roundSlotOverlap(
+  m: MatchResponse,
+  f: MatchResponse,
+  dateSet: Set<string>,
+): number {
+  const mSlots = new Set<string>();
+  for (const s of m.availableSlots ?? []) {
+    const d = slotDate(s);
+    if (d && dateSet.has(d)) mSlots.add(s);
+  }
+  let count = 0;
+  for (const s of f.availableSlots ?? []) {
+    if (mSlots.has(s)) count++;
+  }
+  return count;
+}
+
+/** Gender-preference compatibility gate (symmetric). */
+function genderPrefsOk(m: MatchResponse, f: MatchResponse): boolean {
+  const mOk = m.matchGender === "opposite" || m.matchGender === "any";
+  const fOk = f.matchGender === "opposite" || f.matchGender === "any";
+  return mOk && fOk;
 }
 
 // ---------------------------------------------------------------------------
-// Composite score + reasoning
+// Fallback heuristic scorer
 // ---------------------------------------------------------------------------
-
-interface ScoreBreakdown {
-  total: number;
-  callTime: number;
-  shared: number;
-  convStyle: number;
-  values: number;
-  region: number;
-  mbti: number;
-}
-
-function scorePair(mr: MatchResponse, fr: MatchResponse): ScoreBreakdown {
-  const { score: ct, shared } = callTimeOverlap(mr, fr);
-  const cs = convStyleComplement(mr, fr);
-  const va = valuesAlignment(mr, fr);
-  const rp = regionProximity(mr, fr);
-  const mb = mbtiCompat(mr, fr);
-  const total =
-    0.30 * ct +
-    0.25 * cs +
-    0.25 * va +
-    0.10 * rp +
-    0.10 * mb;
+function heuristicScore(slotOverlap: number): {
+  score: number;
+  reasoning: string;
+} {
+  const capped = Math.min(4, slotOverlap);
+  const raw = 0.5 + capped / 8;
+  const score = Math.max(0, Math.min(1, raw));
   return {
-    total: Math.round(total * 100) / 100,
-    callTime: ct,
-    shared,
-    convStyle: cs,
-    values: va,
-    region: rp,
-    mbti: mb,
+    score: Math.round(score * 100) / 100,
+    reasoning: `LLM 미연동 · 슬롯 겹침 ${slotOverlap}개`,
   };
 }
 
-function reasoningFor(
+// ---------------------------------------------------------------------------
+// Score a single pair (LLM or fallback)
+// ---------------------------------------------------------------------------
+async function scoreOnePair(
   mr: MatchResponse,
   fr: MatchResponse,
-  b: ScoreBreakdown,
-): string {
-  const mReg = (mr.region ?? "—").trim() || "—";
-  const fReg = (fr.region ?? "—").trim() || "—";
-  const regionNote =
-    b.region >= 0.99
-      ? `${mReg} (동일 지역)`
-      : b.region >= 0.59
-        ? `${mReg}-${fReg} (수도권 근접)`
-        : `${mReg}-${fReg}`;
-  return [
-    `통화시간 ${b.shared}칸 공유`,
-    `대화성향 유사도 ${b.convStyle.toFixed(2)}`,
-    `가치관 정렬 ${b.values.toFixed(2)}`,
-    regionNote,
-  ].join(" · ");
+  slotOverlap: number,
+): Promise<{ score: number; reasoning: string }> {
+  if (!claudeConfigured) return heuristicScore(slotOverlap);
+  try {
+    const llm = await scorePairWithLlm(mr, fr, slotOverlap);
+    return {
+      score: Math.round(llm.score * 100) / 100,
+      reasoning: llm.reasoning,
+    };
+  } catch (err) {
+    console.error("[matching/run] Claude scoring failed, falling back:", err);
+    return heuristicScore(slotOverlap);
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Greedy pairing (unchanged structure)
+// Candidate list builder + greedy pairing
 // ---------------------------------------------------------------------------
 
-/**
- * Greedy pairing:
- * - Scores every (male, female) pair using match_response data.
- * - Sorts descending.
- * - Skips pairs blocked by exclusionSet or the optional "avoid" map
- *   (used to prevent round-2 from reusing round-1 partners).
- * - Also skips pairs with zero callTime overlap (hard filter).
- */
-function greedyPair(
-  males: Application[],
-  females: Application[],
-  responseByAppId: Map<string, MatchResponse>,
-  exclusionSet: Set<string>,
-  avoid?: Map<string, Set<string>>,
-): {
+type Candidate = {
   maleId: string;
   femaleId: string;
   score: number;
   reasoning: string;
-}[] {
-  type Candidate = {
-    maleId: string;
-    femaleId: string;
-    score: number;
-    reasoning: string;
-  };
+};
 
+async function buildAndPair(
+  males: Application[],
+  females: Application[],
+  responseByAppId: Map<string, MatchResponse>,
+  dateSet: Set<string>,
+  exclusionSet: Set<string>,
+  avoid: Map<string, Set<string>> | undefined,
+): Promise<{ pairs: Candidate[]; skippedLowOverlap: number }> {
   const candidates: Candidate[] = [];
+  let skippedLowOverlap = 0;
+
   for (const m of males) {
     const mr = responseByAppId.get(m.id);
     if (!mr) continue;
+
     for (const f of females) {
       const fr = responseByAppId.get(f.id);
       if (!fr) continue;
-      // Hard filter: must share ≥1 call-time slot
-      const maleTimes = new Set(mr.callTimes ?? []);
-      const shared = (fr.callTimes ?? []).some((t) => maleTimes.has(t));
-      if (!shared) continue;
 
+      // Gate 1: gender preference
+      if (!genderPrefsOk(mr, fr)) continue;
+
+      // Gate 3: exclusion
       const [a, b] = normalizePhonePair(m.phone, f.phone);
       if (exclusionSet.has(`${a}|${b}`)) continue;
+
+      // Gate 4: round-1 avoid (round 2 only)
       if (avoid?.get(m.id)?.has(f.id)) continue;
 
-      const breakdown = scorePair(mr, fr);
+      // Gate 2: slot overlap in round
+      const overlap = roundSlotOverlap(mr, fr, dateSet);
+      if (overlap < 2) {
+        skippedLowOverlap++;
+        continue;
+      }
+
+      // Score (LLM or fallback). Run sequentially to stay well within rate
+      // limits for realistic pool sizes (~15 * 15 = 225 pairs worst case).
+      const { score, reasoning } = await scoreOnePair(mr, fr, overlap);
+
       candidates.push({
         maleId: m.id,
         femaleId: f.id,
-        score: breakdown.total,
-        reasoning: reasoningFor(mr, fr, breakdown),
+        score,
+        reasoning,
       });
     }
   }
@@ -251,22 +211,16 @@ function greedyPair(
 
   const usedMale = new Set<string>();
   const usedFemale = new Set<string>();
-  const result: {
-    maleId: string;
-    femaleId: string;
-    score: number;
-    reasoning: string;
-  }[] = [];
-
+  const pairs: Candidate[] = [];
   for (const c of candidates) {
     if (usedMale.has(c.maleId)) continue;
     if (usedFemale.has(c.femaleId)) continue;
     usedMale.add(c.maleId);
     usedFemale.add(c.femaleId);
-    result.push(c);
+    pairs.push(c);
   }
 
-  return result;
+  return { pairs, skippedLowOverlap };
 }
 
 // ---------------------------------------------------------------------------
@@ -292,7 +246,12 @@ export async function POST(req: Request) {
   else if (body.round === "both") rounds = [1, 2];
   else return NextResponse.json({ error: "invalid round" }, { status: 400 });
 
-  // Load candidate pool. Eligibility = approved AND has match_response.
+  // Load cohort (for programStartDate)
+  const cohort: Cohort | null = await getCohort(cohortId);
+  if (!cohort) {
+    return NextResponse.json({ error: "cohort not found" }, { status: 404 });
+  }
+
   const [allApps, responses] = await Promise.all([
     listApplications(),
     listMatchResponses(cohortId),
@@ -309,18 +268,16 @@ export async function POST(req: Request) {
   const males = pool.filter((a) => a.gender === "male");
   const females = pool.filter((a) => a.gender === "female");
 
-  // Exclusions
   const exclusions = await listExclusions();
   const exclusionSet = new Set<string>(
     exclusions.map((e) => `${e.phoneA}|${e.phoneB}`),
   );
 
-  // Prior published matchings — can't be overwritten, but we need to avoid
-  // their male/female slots. We WILL delete existing draft rows first.
   const existing = await listMatchings(cohortId);
   const supabase = getSupabaseAdmin();
 
   const counts: Record<string, number> = { round1: 0, round2: 0 };
+  let totalSkippedLowOverlap = 0;
 
   for (const round of rounds) {
     // 1. Delete existing draft rows for this round (idempotent rerun)
@@ -364,16 +321,22 @@ export async function POST(req: Request) {
     const pairableMales = males.filter((m) => !publishedIds.has(m.id));
     const pairableFemales = females.filter((f) => !publishedIds.has(f.id));
 
-    // 4. Greedy pair
-    const pairs = greedyPair(
+    // 4. Compute round's date list
+    const dateList = roundDateList(cohort.programStartDate, round);
+    const dateSet = new Set(dateList);
+
+    // 5. Build candidates + greedy pair
+    const { pairs, skippedLowOverlap } = await buildAndPair(
       pairableMales,
       pairableFemales,
       responseByAppId,
+      dateSet,
       exclusionSet,
       avoid,
     );
+    totalSkippedLowOverlap += skippedLowOverlap;
 
-    // 5. Insert as drafts
+    // 6. Insert drafts
     for (const p of pairs) {
       await createMatching({
         cohortId,
@@ -397,5 +360,7 @@ export async function POST(req: Request) {
     poolSize: pool.length,
     round1: counts.round1 ?? 0,
     round2: counts.round2 ?? 0,
+    skippedLowOverlap: totalSkippedLowOverlap,
+    llmMode: claudeConfigured ? "claude" : "heuristic",
   });
 }

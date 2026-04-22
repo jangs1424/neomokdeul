@@ -72,45 +72,77 @@ export default async function HomePage() {
     >
       <DayHeader cohort={cohort} />
 
-      {matchFormOpen && (
-        <div style={{ padding: '12px 20px 0' }}>
-          {!matchResponse ? (
-            <a
-              href="/match-form"
-              style={{
-                display: 'block',
-                padding: '14px 16px',
-                background: '#fff6d6',
-                border: '1px solid #e6d57a',
-                borderRadius: 12,
-                textDecoration: 'none',
-                color: '#6b5d1a',
-                fontSize: 14,
-                fontWeight: 600,
-              }}
-            >
-              ⚠ 매칭 폼 작성이 필요합니다. 지금 작성 →
-            </a>
-          ) : (
-            <a
-              href="/match-form"
-              style={{
-                display: 'inline-block',
-                padding: '6px 12px',
-                background: 'rgba(90,122,92,0.1)',
-                border: '1px solid var(--forest)',
-                borderRadius: 999,
-                textDecoration: 'none',
-                color: 'var(--forest-deep)',
-                fontSize: 12,
-                fontWeight: 500,
-              }}
-            >
-              ✓ 매칭 폼 제출됨 · 수정 →
-            </a>
-          )}
-        </div>
-      )}
+      {matchFormOpen && (() => {
+        const deadlineMs = cohort.matchFormClosesAt
+          ? new Date(cohort.matchFormClosesAt).getTime()
+          : null;
+        const closed =
+          deadlineMs !== null && Number.isFinite(deadlineMs) && Date.now() > deadlineMs;
+
+        if (closed) {
+          if (!matchResponse) return null;
+          return (
+            <div style={{ padding: '12px 20px 0' }}>
+              <a
+                href="/match-form"
+                style={{
+                  display: 'inline-block',
+                  padding: '6px 12px',
+                  background: 'rgba(0,0,0,0.04)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 999,
+                  textDecoration: 'none',
+                  color: 'var(--sub)',
+                  fontSize: 12,
+                  fontWeight: 500,
+                }}
+              >
+                매칭 폼 · 내 답변 보기 →
+              </a>
+            </div>
+          );
+        }
+
+        return (
+          <div style={{ padding: '12px 20px 0' }}>
+            {!matchResponse ? (
+              <a
+                href="/match-form"
+                style={{
+                  display: 'block',
+                  padding: '14px 16px',
+                  background: '#fff6d6',
+                  border: '1px solid #e6d57a',
+                  borderRadius: 12,
+                  textDecoration: 'none',
+                  color: '#6b5d1a',
+                  fontSize: 14,
+                  fontWeight: 600,
+                }}
+              >
+                ⚠ 매칭 폼 작성이 필요합니다. 지금 작성 →
+              </a>
+            ) : (
+              <a
+                href="/match-form"
+                style={{
+                  display: 'inline-block',
+                  padding: '6px 12px',
+                  background: 'rgba(90,122,92,0.1)',
+                  border: '1px solid var(--forest)',
+                  borderRadius: 999,
+                  textDecoration: 'none',
+                  color: 'var(--forest-deep)',
+                  fontSize: 12,
+                  fontWeight: 500,
+                }}
+              >
+                ✓ 매칭 폼 제출됨 · 수정/보기 →
+              </a>
+            )}
+          </div>
+        );
+      })()}
 
       <PartnerCard
         partnerApp={partnerApp}

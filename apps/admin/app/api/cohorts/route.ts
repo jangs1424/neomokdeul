@@ -33,6 +33,17 @@ export async function POST(req: Request) {
       heroSubtitle: body.heroSubtitle || undefined,
       heroImageUrl: body.heroImageUrl || undefined,
       specialFeatures: Array.isArray(body.specialFeatures) ? body.specialFeatures : [],
+      approvedSmsTemplate: body.approvedSmsTemplate || undefined,
+      applyIntroText: body.applyIntroText || undefined,
+      voiceIntroHelp: body.voiceIntroHelp || undefined,
+      photoHelp: body.photoHelp || undefined,
+      motivationPrompt: body.motivationPrompt || undefined,
+      matchFormClosesAt: body.matchFormClosesAt || undefined,
+      matchDay1Prompt: body.matchDay1Prompt || undefined,
+      matchDay2Prompt: body.matchDay2Prompt || undefined,
+      matchDay3Prompt: body.matchDay3Prompt || undefined,
+      matchDay4Prompt: body.matchDay4Prompt || undefined,
+      matchDay5Prompt: body.matchDay5Prompt || undefined,
     });
     return NextResponse.json({ ok: true, cohort }, { status: 201 });
   } catch (err) {

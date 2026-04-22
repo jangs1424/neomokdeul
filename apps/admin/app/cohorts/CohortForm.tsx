@@ -108,6 +108,16 @@ export default function CohortForm({ mode, cohort }: Props) {
   const [photoHelp, setPhotoHelp] = useState(cohort?.photoHelp ?? "");
   const [motivationPrompt, setMotivationPrompt] = useState(cohort?.motivationPrompt ?? "");
 
+  // Phase 12 — match form settings
+  const [matchFormClosesAt, setMatchFormClosesAt] = useState(
+    toDatetimeLocal(cohort?.matchFormClosesAt ?? "")
+  );
+  const [matchDay1Prompt, setMatchDay1Prompt] = useState(cohort?.matchDay1Prompt ?? "");
+  const [matchDay2Prompt, setMatchDay2Prompt] = useState(cohort?.matchDay2Prompt ?? "");
+  const [matchDay3Prompt, setMatchDay3Prompt] = useState(cohort?.matchDay3Prompt ?? "");
+  const [matchDay4Prompt, setMatchDay4Prompt] = useState(cohort?.matchDay4Prompt ?? "");
+  const [matchDay5Prompt, setMatchDay5Prompt] = useState(cohort?.matchDay5Prompt ?? "");
+
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -159,6 +169,12 @@ export default function CohortForm({ mode, cohort }: Props) {
       voiceIntroHelp: voiceIntroHelp || undefined,
       photoHelp: photoHelp || undefined,
       motivationPrompt: motivationPrompt || undefined,
+      matchFormClosesAt: matchFormClosesAt ? datetimeLocalToISO(matchFormClosesAt) : undefined,
+      matchDay1Prompt: matchDay1Prompt || undefined,
+      matchDay2Prompt: matchDay2Prompt || undefined,
+      matchDay3Prompt: matchDay3Prompt || undefined,
+      matchDay4Prompt: matchDay4Prompt || undefined,
+      matchDay5Prompt: matchDay5Prompt || undefined,
     };
 
     try {
@@ -447,6 +463,88 @@ export default function CohortForm({ mode, cohort }: Props) {
             placeholder="textarea placeholder로 표시"
             style={{ ...inputStyle, resize: "vertical" }}
           />
+        </div>
+      </div>
+
+      {/* 매칭 폼 설정 — Phase 12 */}
+      <div style={sectionStyle}>
+        <div style={sectionTitleStyle}>매칭 폼 설정</div>
+        <div style={fieldStyle}>
+          <label style={labelStyle}>매칭 폼 마감 일시</label>
+          <input
+            type="datetime-local"
+            value={matchFormClosesAt}
+            onChange={(e) => setMatchFormClosesAt(e.target.value)}
+            style={inputStyle}
+          />
+          <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+            이 시각 이후 참가자는 매칭 폼 수정 불가
+          </span>
+        </div>
+        <div style={{ ...fieldStyle, marginTop: 16 }}>
+          <label style={labelStyle}>Day 1 질문</label>
+          <textarea
+            value={matchDay1Prompt}
+            onChange={(e) => setMatchDay1Prompt(e.target.value)}
+            rows={2}
+            placeholder="나를 위로하는 최애 음식..."
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+          <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+            Day 1 질문 (비우면 기본값 사용)
+          </span>
+        </div>
+        <div style={{ ...fieldStyle, marginTop: 16 }}>
+          <label style={labelStyle}>Day 2 질문</label>
+          <textarea
+            value={matchDay2Prompt}
+            onChange={(e) => setMatchDay2Prompt(e.target.value)}
+            rows={2}
+            placeholder="요즘 푹 빠진 취미는?"
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+          <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+            Day 2 질문 (비우면 기본값 사용)
+          </span>
+        </div>
+        <div style={{ ...fieldStyle, marginTop: 16 }}>
+          <label style={labelStyle}>Day 3 질문</label>
+          <textarea
+            value={matchDay3Prompt}
+            onChange={(e) => setMatchDay3Prompt(e.target.value)}
+            rows={2}
+            placeholder="혼자 있을 때 즐겨 찾는 장소..."
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+          <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+            Day 3 질문 (비우면 기본값 사용)
+          </span>
+        </div>
+        <div style={{ ...fieldStyle, marginTop: 16 }}>
+          <label style={labelStyle}>Day 4 질문</label>
+          <textarea
+            value={matchDay4Prompt}
+            onChange={(e) => setMatchDay4Prompt(e.target.value)}
+            rows={2}
+            placeholder="상대와 함께 해보고 싶은 것..."
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+          <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+            Day 4 질문 (비우면 기본값 사용)
+          </span>
+        </div>
+        <div style={{ ...fieldStyle, marginTop: 16 }}>
+          <label style={labelStyle}>Day 5 질문</label>
+          <textarea
+            value={matchDay5Prompt}
+            onChange={(e) => setMatchDay5Prompt(e.target.value)}
+            rows={2}
+            placeholder="개인적인 미션(하나만 적어주세요)..."
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+          <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+            Day 5 질문 (비우면 기본값 사용)
+          </span>
         </div>
       </div>
 

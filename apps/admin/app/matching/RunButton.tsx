@@ -45,10 +45,19 @@ export function RunButton({
         return;
       }
       const data = await res.json();
+      const modeLabel =
+        data.llmMode === "claude"
+          ? "Claude LLM"
+          : data.llmMode === "heuristic"
+            ? "휴리스틱 (LLM 미연동)"
+            : "—";
       alert(
         [
           `매칭 생성 완료`,
           `1차: ${data.round1 ?? 0}쌍, 2차: ${data.round2 ?? 0}쌍`,
+          `풀 크기: ${data.poolSize ?? 0}명`,
+          `슬롯 부족 스킵: ${data.skippedLowOverlap ?? 0}건`,
+          `스코어링: ${modeLabel}`,
         ].join("\n"),
       );
       setOpen(false);

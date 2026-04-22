@@ -64,6 +64,12 @@ type CohortRow = {
   voice_intro_help: string | null;
   photo_help: string | null;
   motivation_prompt: string | null;
+  match_form_closes_at: string | null;
+  match_day1_prompt: string | null;
+  match_day2_prompt: string | null;
+  match_day3_prompt: string | null;
+  match_day4_prompt: string | null;
+  match_day5_prompt: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -120,6 +126,12 @@ function rowToCohort(r: CohortRow): Cohort {
     voiceIntroHelp: r.voice_intro_help ?? undefined,
     photoHelp: r.photo_help ?? undefined,
     motivationPrompt: r.motivation_prompt ?? undefined,
+    matchFormClosesAt: r.match_form_closes_at ?? undefined,
+    matchDay1Prompt: r.match_day1_prompt ?? undefined,
+    matchDay2Prompt: r.match_day2_prompt ?? undefined,
+    matchDay3Prompt: r.match_day3_prompt ?? undefined,
+    matchDay4Prompt: r.match_day4_prompt ?? undefined,
+    matchDay5Prompt: r.match_day5_prompt ?? undefined,
   };
 }
 
@@ -278,6 +290,12 @@ export async function createCohort(
     voice_intro_help: input.voiceIntroHelp ?? null,
     photo_help: input.photoHelp ?? null,
     motivation_prompt: input.motivationPrompt ?? null,
+    match_form_closes_at: input.matchFormClosesAt ?? null,
+    match_day1_prompt: input.matchDay1Prompt ?? null,
+    match_day2_prompt: input.matchDay2Prompt ?? null,
+    match_day3_prompt: input.matchDay3Prompt ?? null,
+    match_day4_prompt: input.matchDay4Prompt ?? null,
+    match_day5_prompt: input.matchDay5Prompt ?? null,
   };
 
   const { data, error } = await getSupabaseAdmin()
@@ -315,6 +333,12 @@ export async function updateCohort(
   if (patch.voiceIntroHelp !== undefined) row.voice_intro_help = patch.voiceIntroHelp ?? null;
   if (patch.photoHelp !== undefined) row.photo_help = patch.photoHelp ?? null;
   if (patch.motivationPrompt !== undefined) row.motivation_prompt = patch.motivationPrompt ?? null;
+  if (patch.matchFormClosesAt !== undefined) row.match_form_closes_at = patch.matchFormClosesAt ?? null;
+  if (patch.matchDay1Prompt !== undefined) row.match_day1_prompt = patch.matchDay1Prompt ?? null;
+  if (patch.matchDay2Prompt !== undefined) row.match_day2_prompt = patch.matchDay2Prompt ?? null;
+  if (patch.matchDay3Prompt !== undefined) row.match_day3_prompt = patch.matchDay3Prompt ?? null;
+  if (patch.matchDay4Prompt !== undefined) row.match_day4_prompt = patch.matchDay4Prompt ?? null;
+  if (patch.matchDay5Prompt !== undefined) row.match_day5_prompt = patch.matchDay5Prompt ?? null;
 
   const { data, error } = await getSupabaseAdmin()
     .from('cohorts')
@@ -509,33 +533,34 @@ export async function addExclusion(
 }
 
 // ---------------------------------------------------------------------------
-// Match responses (Phase 11)
+// Match responses (Phase 11/12 — Tally 26 field + date-specific slots)
 // ---------------------------------------------------------------------------
 type MatchResponseRow = {
   id: string;
   application_id: string;
   cohort_id: string;
   nickname: string;
+  munto_nickname: string | null;
   region: string;
-  call_times: string[];
   mbti: string | null;
-  conv_energy: number | null;
-  conv_thinking: number | null;
-  conv_planning: number | null;
-  conv_pace: number | null;
-  conv_depth: number | null;
-  values_marriage: number | null;
-  values_career: number | null;
-  values_family: number | null;
-  values_hobby: number | null;
-  values_independence: number | null;
-  day2_answer: string | null;
-  day3_answer: string | null;
-  day4_answer: string | null;
-  day5_answer: string | null;
-  day6_answer: string | null;
-  day7_answer: string | null;
+  match_gender: string | null;
+  phone_type: string | null;
+  conv_style_self: string | null;
+  conv_with_strangers: string | null;
+  conv_attraction: string | null;
+  ideal_important: string | null;
+  ideal_soulmate_must: string | null;
+  ideal_relationship: string | null;
+  ideal_partner_q: string | null;
+  day1_soulfood: string | null;
+  day2_hobby: string | null;
+  day3_place: string | null;
+  day4_together: string | null;
+  day5_secret_mission: string | null;
+  available_slots: string[];
+  gathering_dates: string[];
   kakao_openchat_url: string | null;
+  marketing_agreed: boolean;
   submitted_at: string;
   created_at: string;
   updated_at: string;
@@ -547,26 +572,27 @@ function rowToMatchResponse(r: MatchResponseRow): MatchResponse {
     applicationId: r.application_id,
     cohortId: r.cohort_id,
     nickname: r.nickname,
+    muntoNickname: r.munto_nickname ?? undefined,
     region: r.region,
-    callTimes: r.call_times,
     mbti: r.mbti ?? undefined,
-    convEnergy: r.conv_energy ?? undefined,
-    convThinking: r.conv_thinking ?? undefined,
-    convPlanning: r.conv_planning ?? undefined,
-    convPace: r.conv_pace ?? undefined,
-    convDepth: r.conv_depth ?? undefined,
-    valuesMarriage: r.values_marriage ?? undefined,
-    valuesCareer: r.values_career ?? undefined,
-    valuesFamily: r.values_family ?? undefined,
-    valuesHobby: r.values_hobby ?? undefined,
-    valuesIndependence: r.values_independence ?? undefined,
-    day2Answer: r.day2_answer ?? undefined,
-    day3Answer: r.day3_answer ?? undefined,
-    day4Answer: r.day4_answer ?? undefined,
-    day5Answer: r.day5_answer ?? undefined,
-    day6Answer: r.day6_answer ?? undefined,
-    day7Answer: r.day7_answer ?? undefined,
+    matchGender: (r.match_gender as MatchResponse['matchGender']) ?? undefined,
+    phoneType: (r.phone_type as MatchResponse['phoneType']) ?? undefined,
+    convStyleSelf: r.conv_style_self ?? undefined,
+    convWithStrangers: r.conv_with_strangers ?? undefined,
+    convAttraction: r.conv_attraction ?? undefined,
+    idealImportant: r.ideal_important ?? undefined,
+    idealSoulmateMust: r.ideal_soulmate_must ?? undefined,
+    idealRelationship: r.ideal_relationship ?? undefined,
+    idealPartnerQ: r.ideal_partner_q ?? undefined,
+    day1Soulfood: r.day1_soulfood ?? undefined,
+    day2Hobby: r.day2_hobby ?? undefined,
+    day3Place: r.day3_place ?? undefined,
+    day4Together: r.day4_together ?? undefined,
+    day5SecretMission: r.day5_secret_mission ?? undefined,
+    availableSlots: r.available_slots ?? [],
+    gatheringDates: r.gathering_dates ?? [],
     kakaoOpenchatUrl: r.kakao_openchat_url ?? undefined,
+    marketingAgreed: r.marketing_agreed,
     submittedAt: r.submitted_at,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -578,26 +604,27 @@ function inputToMatchRow(i: MatchResponseInput): Partial<MatchResponseRow> {
     application_id: i.applicationId,
     cohort_id: i.cohortId,
     nickname: i.nickname,
+    munto_nickname: i.muntoNickname ?? null,
     region: i.region,
-    call_times: i.callTimes,
     mbti: i.mbti ?? null,
-    conv_energy: i.convEnergy ?? null,
-    conv_thinking: i.convThinking ?? null,
-    conv_planning: i.convPlanning ?? null,
-    conv_pace: i.convPace ?? null,
-    conv_depth: i.convDepth ?? null,
-    values_marriage: i.valuesMarriage ?? null,
-    values_career: i.valuesCareer ?? null,
-    values_family: i.valuesFamily ?? null,
-    values_hobby: i.valuesHobby ?? null,
-    values_independence: i.valuesIndependence ?? null,
-    day2_answer: i.day2Answer ?? null,
-    day3_answer: i.day3Answer ?? null,
-    day4_answer: i.day4Answer ?? null,
-    day5_answer: i.day5Answer ?? null,
-    day6_answer: i.day6Answer ?? null,
-    day7_answer: i.day7Answer ?? null,
+    match_gender: i.matchGender ?? null,
+    phone_type: i.phoneType ?? null,
+    conv_style_self: i.convStyleSelf ?? null,
+    conv_with_strangers: i.convWithStrangers ?? null,
+    conv_attraction: i.convAttraction ?? null,
+    ideal_important: i.idealImportant ?? null,
+    ideal_soulmate_must: i.idealSoulmateMust ?? null,
+    ideal_relationship: i.idealRelationship ?? null,
+    ideal_partner_q: i.idealPartnerQ ?? null,
+    day1_soulfood: i.day1Soulfood ?? null,
+    day2_hobby: i.day2Hobby ?? null,
+    day3_place: i.day3Place ?? null,
+    day4_together: i.day4Together ?? null,
+    day5_secret_mission: i.day5SecretMission ?? null,
+    available_slots: i.availableSlots ?? [],
+    gathering_dates: i.gatheringDates ?? [],
     kakao_openchat_url: i.kakaoOpenchatUrl ?? null,
+    marketing_agreed: i.marketingAgreed ?? false,
   };
 }
 
@@ -622,6 +649,15 @@ export async function listMatchResponses(
     .eq('cohort_id', cohortId)
     .order('submitted_at', { ascending: true });
   if (error) throw new Error(`[listMatchResponses] ${error.message}`);
+  return (data ?? []).map((r) => rowToMatchResponse(r as MatchResponseRow));
+}
+
+export async function listAllMatchResponses(): Promise<MatchResponse[]> {
+  const { data, error } = await getSupabaseAdmin()
+    .from('match_responses')
+    .select('*')
+    .order('submitted_at', { ascending: true });
+  if (error) throw new Error(`[listAllMatchResponses] ${error.message}`);
   return (data ?? []).map((r) => rowToMatchResponse(r as MatchResponseRow));
 }
 

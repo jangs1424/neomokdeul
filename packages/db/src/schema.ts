@@ -52,6 +52,13 @@ export interface Cohort {
   voiceIntroHelp?: string;
   photoHelp?: string;
   motivationPrompt?: string;
+  // Phase 12: match form controls
+  matchFormClosesAt?: string;  // timestamptz — after this, read-only
+  matchDay1Prompt?: string;
+  matchDay2Prompt?: string;
+  matchDay3Prompt?: string;
+  matchDay4Prompt?: string;
+  matchDay5Prompt?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -87,40 +94,49 @@ export interface Exclusion {
 // Match form response (Phase 11) — per-applicant answers filled on Day 1.
 // Drives the matching algorithm (not the application form).
 // ---------------------------------------------------------------------------
+export type MatchGenderPreference = 'opposite' | 'same' | 'any';
+export type PhoneType = 'iphone' | 'galaxy' | 'other';
+
 export interface MatchResponse {
   id: string;
   applicationId: string;
   cohortId: string;
 
-  nickname: string;
+  // Basic (Tally p.1)
+  nickname: string;              // 새로운 닉네임
+  muntoNickname?: string;        // 기존 문토 닉네임
   region: string;
-  callTimes: string[];
   mbti?: string;
+  matchGender?: MatchGenderPreference;
+  phoneType?: PhoneType;
 
-  // Conversation style (1-5 Likert)
-  convEnergy?: number;   // introvert ↔ extrovert
-  convThinking?: number; // logical ↔ emotional
-  convPlanning?: number; // planner ↔ spontaneous
-  convPace?: number;     // listener ↔ talker
-  convDepth?: number;    // light ↔ deep
+  // 대화 성향 (Tally p.2, 3 open-text)
+  convStyleSelf?: string;        // 대화할 때 이런 사람
+  convWithStrangers?: string;    // 낯선이와 함께할 때
+  convAttraction?: string;       // 매력 포인트
 
-  // Values (1-5 importance)
-  valuesMarriage?: number;
-  valuesCareer?: number;
-  valuesFamily?: number;
-  valuesHobby?: number;
-  valuesIndependence?: number;
+  // 이상형·가치관 (Tally p.3, 4 open-text)
+  idealImportant?: string;       // 사람 볼 때 중요한 것
+  idealSoulmateMust?: string;    // 소울메이트라면 이건 맞아야지
+  idealRelationship?: string;    // 기대하는 관계
+  idealPartnerQ?: string;        // 파트너에게 하고 싶은 질문
 
-  // Day-by-day topics
-  day2Answer?: string;
-  day3Answer?: string;
-  day4Answer?: string;
-  day5Answer?: string;
-  day6Answer?: string;
-  day7Answer?: string;
+  // Day 1~5 답변 (Tally p.4)
+  day1Soulfood?: string;
+  day2Hobby?: string;
+  day3Place?: string;
+  day4Together?: string;
+  day5SecretMission?: string;
 
-  // Male only
-  kakaoOpenchatUrl?: string;
+  // 통화 가능 슬롯 — Phase 12: 날짜×시간 구체 지정
+  availableSlots: string[];      // ["YYYY-MM-DD_HH-HH", ...]
+
+  // 개더링·연락
+  gatheringDates: string[];      // 참여 가능 날짜들
+  kakaoOpenchatUrl?: string;     // 남성만
+
+  // 동의
+  marketingAgreed: boolean;
 
   submittedAt: string;
   createdAt: string;

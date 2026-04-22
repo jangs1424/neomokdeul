@@ -1,6 +1,6 @@
 "use client";
 
-import type { Application } from "@neomokdeul/db";
+import type { Application, MatchResponse } from "@neomokdeul/db";
 import { ActionButtons } from "./ActionButtons";
 import { AudioPlayer } from "./AudioPlayer";
 import { PhotoModal } from "./PhotoModal";
@@ -134,10 +134,12 @@ export function ApplicationRow({
   app,
   voiceSignedUrl,
   photoSignedUrl,
+  matchResponse,
 }: {
   app: Application;
   voiceSignedUrl?: string | null;
   photoSignedUrl?: string | null;
+  matchResponse?: MatchResponse | null;
 }) {
   return (
     <details>
@@ -203,6 +205,7 @@ export function ApplicationRow({
         app={app}
         voiceUrl={voiceSignedUrl ?? null}
         photoUrl={photoSignedUrl ?? null}
+        matchResponse={matchResponse ?? null}
       />
     </details>
   );

@@ -3,54 +3,44 @@ import { cookies } from 'next/headers';
 import { verifyToken } from '../../../lib/token';
 import {
   getApplication,
+  getCohort,
   upsertMatchResponse,
   type MatchResponseInput,
 } from '@neomokdeul/db';
 
 export const dynamic = 'force-dynamic';
 
-const VALID_CALL_TIMES = new Set([
-  '평일저녁',
-  '주말오전',
-  '주말오후',
-  '주말저녁',
-]);
-
-const VALID_REGIONS = new Set([
-  '서울',
-  '경기도',
-  '인천',
-  '부산',
-  '대구',
-  '광주',
-  '대전',
-  '울산',
-  '세종',
-  '강원도',
-  '충청북도',
-  '충청남도',
-  '전라북도',
-  '전라남도',
-  '경상북도',
-  '경상남도',
-  '제주도',
-]);
-
-const VALID_MBTI = new Set([
-  'INTJ', 'INTP', 'ENTJ', 'ENTP',
-  'INFJ', 'INFP', 'ENFJ', 'ENFP',
-  'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ',
-  'ISTP', 'ISFP', 'ESTP', 'ESFP',
-]);
-
-function isInt1to5(v: unknown): v is number {
-  return typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 5;
-}
+const VALID_MATCH_GENDER = new Set(['opposite', 'same', 'any']);
+const VALID_PHONE_TYPE = new Set(['iphone', 'galaxy', 'other']);
+const SLOT_RE = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}$/;
 
 function optString(v: unknown): string | undefined {
   if (typeof v !== 'string') return undefined;
   const t = v.trim();
   return t.length > 0 ? t : undefined;
+}
+
+function reqString(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return t.length > 0 ? t : null;
+}
+
+function enumerateDates(startStr: string, endStr: string): Set<string> {
+  const out = new Set<string>();
+  const [sy, sm, sd] = startStr.split('-').map((x) => parseInt(x, 10));
+  const [ey, em, ed] = endStr.split('-').map((x) => parseInt(x, 10));
+  const start = new Date(sy, sm - 1, sd);
+  const end = new Date(ey, em - 1, ed);
+  const cur = new Date(start);
+  while (cur.getTime() <= end.getTime()) {
+    const y = cur.getFullYear();
+    const m = String(cur.getMonth() + 1).padStart(2, '0');
+    const d = String(cur.getDate()).padStart(2, '0');
+    out.add(`${y}-${m}-${d}`);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
 }
 
 export async function POST(req: NextRequest) {
@@ -80,92 +70,148 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // nickname
-    const nickname =
-      typeof body.nickname === 'string' ? body.nickname.trim() : '';
-    if (nickname.length < 2 || nickname.length > 12) {
-      return NextResponse.json(
-        { ok: false, error: '닉네임은 2~12자로 입력해 주세요.' },
-        { status: 400 },
-      );
-    }
-
-    // region
-    const region = typeof body.region === 'string' ? body.region.trim() : '';
-    if (!region || !VALID_REGIONS.has(region)) {
-      return NextResponse.json(
-        { ok: false, error: '거주 지역을 선택해 주세요.' },
-        { status: 400 },
-      );
-    }
-
-    // callTimes
-    const rawCallTimes = body.callTimes;
-    if (!Array.isArray(rawCallTimes) || rawCallTimes.length === 0) {
-      return NextResponse.json(
-        { ok: false, error: '통화 가능 시간대를 1개 이상 선택해 주세요.' },
-        { status: 400 },
-      );
-    }
-    const callTimes: string[] = [];
-    for (const t of rawCallTimes) {
-      if (typeof t !== 'string' || !VALID_CALL_TIMES.has(t)) {
-        return NextResponse.json(
-          { ok: false, error: '올바르지 않은 통화 시간대가 포함됐어요.' },
-          { status: 400 },
-        );
-      }
-      if (!callTimes.includes(t)) callTimes.push(t);
-    }
-
-    // mbti
-    const mbtiRaw = optString(body.mbti);
-    const mbti =
-      mbtiRaw && VALID_MBTI.has(mbtiRaw.toUpperCase())
-        ? mbtiRaw.toUpperCase()
-        : undefined;
-
-    // Likert fields — all required 1-5
-    const likertKeys = [
-      'convEnergy',
-      'convThinking',
-      'convPlanning',
-      'convPace',
-      'convDepth',
-      'valuesMarriage',
-      'valuesCareer',
-      'valuesFamily',
-      'valuesHobby',
-      'valuesIndependence',
-    ] as const;
-    const likert: Record<(typeof likertKeys)[number], number> = {} as never;
-    for (const k of likertKeys) {
-      const v = body[k];
-      if (!isInt1to5(v)) {
-        return NextResponse.json(
-          { ok: false, error: `"${k}" 값은 1~5 사이여야 해요.` },
-          { status: 400 },
-        );
-      }
-      likert[k] = v;
-    }
-
-    // Day answers (optional)
-    const day2Answer = optString(body.day2Answer);
-    const day3Answer = optString(body.day3Answer);
-    const day4Answer = optString(body.day4Answer);
-    const day5Answer = optString(body.day5Answer);
-    const day6Answer = optString(body.day6Answer);
-    const day7Answer = optString(body.day7Answer);
-
     // Resolve application & cohort from token
-    const application = await getApplication(payload.appId);
+    const [application, cohort] = await Promise.all([
+      getApplication(payload.appId),
+      getCohort(payload.cohortId),
+    ]);
     if (!application) {
       return NextResponse.json(
         { ok: false, error: '신청 정보를 찾을 수 없어요.' },
         { status: 400 },
       );
     }
+    if (!cohort) {
+      return NextResponse.json(
+        { ok: false, error: '회차 정보를 찾을 수 없어요.' },
+        { status: 400 },
+      );
+    }
+
+    // Deadline check
+    if (cohort.matchFormClosesAt) {
+      const dl = new Date(cohort.matchFormClosesAt).getTime();
+      if (Number.isFinite(dl) && Date.now() > dl) {
+        return NextResponse.json(
+          { ok: false, error: '수정 마감 시각이 지나 더 이상 저장할 수 없어요.' },
+          { status: 403 },
+        );
+      }
+    }
+
+    // matchGender
+    const matchGenderRaw = typeof body.matchGender === 'string' ? body.matchGender : '';
+    if (!VALID_MATCH_GENDER.has(matchGenderRaw)) {
+      return NextResponse.json(
+        { ok: false, error: '매칭 희망 성별을 선택해 주세요.' },
+        { status: 400 },
+      );
+    }
+    const matchGender = matchGenderRaw as MatchResponseInput['matchGender'];
+
+    // phoneType
+    const phoneTypeRaw = typeof body.phoneType === 'string' ? body.phoneType : '';
+    if (!VALID_PHONE_TYPE.has(phoneTypeRaw)) {
+      return NextResponse.json(
+        { ok: false, error: '휴대폰 타입을 선택해 주세요.' },
+        { status: 400 },
+      );
+    }
+    const phoneType = phoneTypeRaw as MatchResponseInput['phoneType'];
+
+    // nickname (required, 2-12)
+    const nickname = reqString(body.nickname);
+    if (!nickname || nickname.length < 2 || nickname.length > 12) {
+      return NextResponse.json(
+        { ok: false, error: '새로운 닉네임은 2~12자로 입력해 주세요.' },
+        { status: 400 },
+      );
+    }
+
+    const muntoNickname = optString(body.muntoNickname);
+    if (muntoNickname && muntoNickname === nickname) {
+      return NextResponse.json(
+        { ok: false, error: '새로운 닉네임은 문토 닉네임과 달라야 해요.' },
+        { status: 400 },
+      );
+    }
+
+    // 7 open-text fields required
+    const openTextMap: Record<string, string> = {
+      convStyleSelf: '저는 대화할 때 이런 사람 같아요!',
+      convWithStrangers: '낯선이와 함께할 때 저는 이래요!',
+      convAttraction: '남들에게 칭찬받는 대화 매력 포인트',
+      idealImportant: '사람을 볼 때 가장 중요하게 보는 것',
+      idealSoulmateMust: '소울메이트라면 이건 맞아야지',
+      idealRelationship: '기대하는 관계',
+      idealPartnerQ: '파트너에게 하고 싶은 질문',
+    };
+    const openTexts: Record<string, string> = {};
+    for (const [key, label] of Object.entries(openTextMap)) {
+      const v = reqString(body[key]);
+      if (!v) {
+        return NextResponse.json(
+          { ok: false, error: `"${label}" 항목을 작성해 주세요.` },
+          { status: 400 },
+        );
+      }
+      openTexts[key] = v;
+    }
+
+    // Day answers (optional)
+    const day1Soulfood = optString(body.day1Soulfood);
+    const day2Hobby = optString(body.day2Hobby);
+    const day3Place = optString(body.day3Place);
+    const day4Together = optString(body.day4Together);
+    const day5SecretMission = optString(body.day5SecretMission);
+
+    // availableSlots — array of "YYYY-MM-DD_HH-HH", min 2
+    const rawSlots = body.availableSlots;
+    if (!Array.isArray(rawSlots) || rawSlots.length < 2) {
+      return NextResponse.json(
+        { ok: false, error: '통화 가능 시간은 최소 2개 이상 선택해 주세요.' },
+        { status: 400 },
+      );
+    }
+    const programDates = enumerateDates(cohort.programStartDate, cohort.programEndDate);
+    const availableSlots: string[] = [];
+    const seenSlots = new Set<string>();
+    for (const s of rawSlots) {
+      if (typeof s !== 'string' || !SLOT_RE.test(s)) {
+        return NextResponse.json(
+          { ok: false, error: '통화 슬롯 형식이 올바르지 않아요.' },
+          { status: 400 },
+        );
+      }
+      const datePart = s.split('_')[0];
+      if (!programDates.has(datePart)) {
+        return NextResponse.json(
+          { ok: false, error: '프로그램 기간 밖의 날짜가 포함됐어요.' },
+          { status: 400 },
+        );
+      }
+      if (!seenSlots.has(s)) {
+        seenSlots.add(s);
+        availableSlots.push(s);
+      }
+    }
+
+    // gatheringDates — optional, must be within program
+    const rawGathering = body.gatheringDates;
+    const gatheringDates: string[] = [];
+    if (Array.isArray(rawGathering)) {
+      const seen = new Set<string>();
+      for (const d of rawGathering) {
+        if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+        if (!programDates.has(d)) continue;
+        if (seen.has(d)) continue;
+        seen.add(d);
+        gatheringDates.push(d);
+      }
+    }
+
+    // marketingAgreed
+    const marketingAgreed = body.marketingAgreed === true;
 
     // Male: openchat URL required
     let kakaoOpenchatUrl: string | undefined;
@@ -190,26 +236,27 @@ export async function POST(req: NextRequest) {
       applicationId: payload.appId,
       cohortId: payload.cohortId || application.cohortId,
       nickname,
-      region,
-      callTimes,
-      mbti,
-      convEnergy: likert.convEnergy,
-      convThinking: likert.convThinking,
-      convPlanning: likert.convPlanning,
-      convPace: likert.convPace,
-      convDepth: likert.convDepth,
-      valuesMarriage: likert.valuesMarriage,
-      valuesCareer: likert.valuesCareer,
-      valuesFamily: likert.valuesFamily,
-      valuesHobby: likert.valuesHobby,
-      valuesIndependence: likert.valuesIndependence,
-      day2Answer,
-      day3Answer,
-      day4Answer,
-      day5Answer,
-      day6Answer,
-      day7Answer,
+      muntoNickname,
+      region: application.region,
+      mbti: application.mbti,
+      matchGender,
+      phoneType,
+      convStyleSelf: openTexts.convStyleSelf,
+      convWithStrangers: openTexts.convWithStrangers,
+      convAttraction: openTexts.convAttraction,
+      idealImportant: openTexts.idealImportant,
+      idealSoulmateMust: openTexts.idealSoulmateMust,
+      idealRelationship: openTexts.idealRelationship,
+      idealPartnerQ: openTexts.idealPartnerQ,
+      day1Soulfood,
+      day2Hobby,
+      day3Place,
+      day4Together,
+      day5SecretMission,
+      availableSlots,
+      gatheringDates,
       kakaoOpenchatUrl,
+      marketingAgreed,
     };
 
     const saved = await upsertMatchResponse(input);

@@ -2,8 +2,13 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 import Link from "next/link";
-import { listApplications, listCohorts } from "@neomokdeul/db/store";
-import { getSignedFileUrl, type Application, type Cohort } from "@neomokdeul/db";
+import { listApplications, listCohorts, listAllMatchResponses } from "@neomokdeul/db/store";
+import {
+  getSignedFileUrl,
+  type Application,
+  type Cohort,
+  type MatchResponse,
+} from "@neomokdeul/db";
 import { CountsWidget } from "./CountsWidget";
 import { Filters } from "./Filters";
 import { StatusTabs } from "./StatusTabs";
@@ -61,10 +66,14 @@ export default async function Page({
   searchParams: Promise<SP>;
 }) {
   const sp = await searchParams;
-  const [allApps, allCohorts] = await Promise.all([
+  const [allApps, allCohorts, allResponses] = await Promise.all([
     listApplications(),
     listCohorts(),
+    listAllMatchResponses(),
   ]);
+  const responseByAppId = new Map<string, MatchResponse>(
+    allResponses.map((r) => [r.applicationId, r]),
+  );
 
   // Cohort lookup
   const cohortById = new Map<string, Cohort>();
@@ -234,6 +243,7 @@ export default async function Page({
                   app={app}
                   voiceSignedUrl={urls?.voiceUrl ?? null}
                   photoSignedUrl={urls?.photoUrl ?? null}
+                  matchResponse={responseByAppId.get(app.id) ?? null}
                 />
               );
             })}

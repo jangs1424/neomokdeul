@@ -13,6 +13,7 @@
     "next": "^15",
     "react": "^19",
     "react-dom": "^19",
+    "@anthropic-ai/sdk": "^0.40.0",
     "@neomokdeul/db": "workspace:*",
     "@neomokdeul/ui": "workspace:*"
   },
