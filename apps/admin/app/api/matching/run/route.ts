@@ -215,23 +215,32 @@ async function buildAndPair(
     pairs.push(c);
   }
 
-  // ---- Step 3: LLM-rescore final pairs (in parallel, capped) ----
+  // ---- Step 3: LLM-rescore final pairs (concurrency-limited to avoid 429s) ----
   let llmCalls = 0;
   if (claudeConfigured && pairs.length > 0) {
     const toScore = pairs.slice(0, MAX_LLM_CALLS_PER_ROUND);
-    const results = await Promise.allSettled(
-      toScore.map((p) => scorePairWithLlm(p.mr, p.fr, p.overlap)),
-    );
-    for (let i = 0; i < toScore.length; i++) {
-      const res = results[i];
-      llmCalls++;
-      if (res.status === "fulfilled") {
-        toScore[i].score = Math.round(res.value.score * 100) / 100;
-        toScore[i].reasoning = res.value.reasoning;
-      } else {
-        console.error("[matching/run] LLM call failed for pair", i, ":", res.reason);
-        // keep heuristic; mark in reasoning
-        toScore[i].reasoning = `${toScore[i].reasoning} · LLM 실패`;
+    // Run in batches of 5 to stay well under Haiku rate limits
+    const BATCH_SIZE = 5;
+    for (let batchStart = 0; batchStart < toScore.length; batchStart += BATCH_SIZE) {
+      const batch = toScore.slice(batchStart, batchStart + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map((p) => scorePairWithLlm(p.mr, p.fr, p.overlap)),
+      );
+      for (let j = 0; j < batch.length; j++) {
+        const res = results[j];
+        const i = batchStart + j;
+        llmCalls++;
+        if (res.status === "fulfilled") {
+          toScore[i].score = Math.round(res.value.score * 100) / 100;
+          toScore[i].reasoning = res.value.reasoning;
+        } else {
+          console.error("[matching/run] LLM call failed for pair", i, ":", res.reason);
+          toScore[i].reasoning = `${toScore[i].reasoning} · LLM 실패`;
+        }
+      }
+      // Small inter-batch delay to avoid burst rate limiting
+      if (batchStart + BATCH_SIZE < toScore.length) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
       }
     }
   }
