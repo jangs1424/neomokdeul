@@ -117,6 +117,17 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
     day5: cohort.matchDay5Prompt ?? DEFAULT_DAY_PROMPTS.day5,
   };
 
+  // Phase 12 Option A — per-cohort editable question prompts (fallback to Tally defaults)
+  const mainQuestions = {
+    convStyleSelf: cohort.matchQConvStyleSelf ?? "저는 대화할 때 이런 사람 같아요!",
+    convWithStrangers: cohort.matchQConvWithStrangers ?? "낯선이와 함께할 때 저는 이래요!",
+    convAttraction: cohort.matchQConvAttraction ?? "남들에게 칭찬받는 대화할 때의 나의 매력 포인트?",
+    idealImportant: cohort.matchQIdealImportant ?? "사람을 볼 때 당신이 가장 중요하게 보는 것은?",
+    idealSoulmateMust: cohort.matchQIdealSoulmateMust ?? "소울메이트라면 이건 맞아야지!",
+    idealRelationship: cohort.matchQIdealRelationship ?? "나의 전화 메이트와 이런 관계를 기대하고 있어요!",
+    idealPartnerQ: cohort.matchQIdealPartnerQ ?? "이번 커넥팅 기간 동안 내 파트너에게 꼭 하고 싶은 질문 한가지?",
+  };
+
   // Read-only render conditions
   if (closed && existingResponse) {
     return (
@@ -442,7 +453,7 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
 
       {/* Page 2 — 대화 성향 */}
       <Section title="2. 대화 성향" subtitle="자유롭게 작성해 주세요.">
-        <Field label="저는 대화할 때 이런 사람 같아요!" required>
+        <Field label={mainQuestions.convStyleSelf} required>
           <textarea
             value={form.convStyleSelf}
             onChange={(e) => update('convStyleSelf', e.target.value)}
@@ -451,7 +462,7 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
             style={textareaStyle}
           />
         </Field>
-        <Field label="낯선이와 함께할 때 저는 이래요!" required>
+        <Field label={mainQuestions.convWithStrangers} required>
           <textarea
             value={form.convWithStrangers}
             onChange={(e) => update('convWithStrangers', e.target.value)}
@@ -460,7 +471,7 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
             style={textareaStyle}
           />
         </Field>
-        <Field label="남들에게 칭찬받는 대화할 때의 나의 매력 포인트?" required>
+        <Field label={mainQuestions.convAttraction} required>
           <textarea
             value={form.convAttraction}
             onChange={(e) => update('convAttraction', e.target.value)}
@@ -473,7 +484,7 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
 
       {/* Page 3 — 이상형 */}
       <Section title="3. 이상형·가치관">
-        <Field label="사람을 볼 때 당신이 가장 중요하게 보는 것은?" required>
+        <Field label={mainQuestions.idealImportant} required>
           <textarea
             value={form.idealImportant}
             onChange={(e) => update('idealImportant', e.target.value)}
@@ -482,7 +493,7 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
             style={textareaStyle}
           />
         </Field>
-        <Field label="소울메이트라면 이건 맞아야지!" required>
+        <Field label={mainQuestions.idealSoulmateMust} required>
           <textarea
             value={form.idealSoulmateMust}
             onChange={(e) => update('idealSoulmateMust', e.target.value)}
@@ -491,7 +502,7 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
             style={textareaStyle}
           />
         </Field>
-        <Field label="나의 전화 메이트와 이런 관계를 기대하고 있어요!" required>
+        <Field label={mainQuestions.idealRelationship} required>
           <textarea
             value={form.idealRelationship}
             onChange={(e) => update('idealRelationship', e.target.value)}
@@ -500,7 +511,7 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
             style={textareaStyle}
           />
         </Field>
-        <Field label="이번 커넥팅 기간 동안 내 파트너에게 꼭 하고 싶은 질문 한가지?" required>
+        <Field label={mainQuestions.idealPartnerQ} required>
           <textarea
             value={form.idealPartnerQ}
             onChange={(e) => update('idealPartnerQ', e.target.value)}

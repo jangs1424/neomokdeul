@@ -44,6 +44,13 @@ export async function POST(req: Request) {
       matchDay3Prompt: body.matchDay3Prompt || undefined,
       matchDay4Prompt: body.matchDay4Prompt || undefined,
       matchDay5Prompt: body.matchDay5Prompt || undefined,
+      matchQConvStyleSelf: body.matchQConvStyleSelf || undefined,
+      matchQConvWithStrangers: body.matchQConvWithStrangers || undefined,
+      matchQConvAttraction: body.matchQConvAttraction || undefined,
+      matchQIdealImportant: body.matchQIdealImportant || undefined,
+      matchQIdealSoulmateMust: body.matchQIdealSoulmateMust || undefined,
+      matchQIdealRelationship: body.matchQIdealRelationship || undefined,
+      matchQIdealPartnerQ: body.matchQIdealPartnerQ || undefined,
     });
     return NextResponse.json({ ok: true, cohort }, { status: 201 });
   } catch (err) {

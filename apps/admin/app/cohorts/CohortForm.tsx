@@ -117,6 +117,14 @@ export default function CohortForm({ mode, cohort }: Props) {
   const [matchDay3Prompt, setMatchDay3Prompt] = useState(cohort?.matchDay3Prompt ?? "");
   const [matchDay4Prompt, setMatchDay4Prompt] = useState(cohort?.matchDay4Prompt ?? "");
   const [matchDay5Prompt, setMatchDay5Prompt] = useState(cohort?.matchDay5Prompt ?? "");
+  // Phase 12 Option A — 7 main question prompts
+  const [mqConvStyleSelf, setMqConvStyleSelf]         = useState(cohort?.matchQConvStyleSelf ?? "");
+  const [mqConvWithStrangers, setMqConvWithStrangers] = useState(cohort?.matchQConvWithStrangers ?? "");
+  const [mqConvAttraction, setMqConvAttraction]       = useState(cohort?.matchQConvAttraction ?? "");
+  const [mqIdealImportant, setMqIdealImportant]       = useState(cohort?.matchQIdealImportant ?? "");
+  const [mqIdealSoulmateMust, setMqIdealSoulmateMust] = useState(cohort?.matchQIdealSoulmateMust ?? "");
+  const [mqIdealRelationship, setMqIdealRelationship] = useState(cohort?.matchQIdealRelationship ?? "");
+  const [mqIdealPartnerQ, setMqIdealPartnerQ]         = useState(cohort?.matchQIdealPartnerQ ?? "");
 
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -175,6 +183,13 @@ export default function CohortForm({ mode, cohort }: Props) {
       matchDay3Prompt: matchDay3Prompt || undefined,
       matchDay4Prompt: matchDay4Prompt || undefined,
       matchDay5Prompt: matchDay5Prompt || undefined,
+      matchQConvStyleSelf: mqConvStyleSelf || undefined,
+      matchQConvWithStrangers: mqConvWithStrangers || undefined,
+      matchQConvAttraction: mqConvAttraction || undefined,
+      matchQIdealImportant: mqIdealImportant || undefined,
+      matchQIdealSoulmateMust: mqIdealSoulmateMust || undefined,
+      matchQIdealRelationship: mqIdealRelationship || undefined,
+      matchQIdealPartnerQ: mqIdealPartnerQ || undefined,
     };
 
     try {
@@ -545,6 +560,85 @@ export default function CohortForm({ mode, cohort }: Props) {
           <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
             Day 5 질문 (비우면 기본값 사용)
           </span>
+        </div>
+      </div>
+
+      {/* 매칭 폼 본 질문 편집 — Phase 12 Option A (대화성향 3 + 이상형·가치관 4) */}
+      <div style={sectionStyle}>
+        <div style={sectionTitleStyle}>매칭 폼 본 질문 (7개)</div>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: -4, marginBottom: 14 }}>
+          비우면 기본 Tally 문구로 표시됩니다. 기수별로 질문을 다르게 쓸 때만 채우세요.
+        </p>
+
+        <div style={{ ...fieldStyle, marginTop: 4 }}>
+          <label style={labelStyle}>[대화성향 1] 나는 대화할 때…</label>
+          <textarea
+            value={mqConvStyleSelf}
+            onChange={(e) => setMqConvStyleSelf(e.target.value)}
+            rows={2}
+            placeholder="저는 대화할 때 이런 사람 같아요!"
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+        </div>
+        <div style={{ ...fieldStyle, marginTop: 12 }}>
+          <label style={labelStyle}>[대화성향 2] 낯선이와 함께할 때</label>
+          <textarea
+            value={mqConvWithStrangers}
+            onChange={(e) => setMqConvWithStrangers(e.target.value)}
+            rows={2}
+            placeholder="낯선이와 함께할 때 저는 이래요!"
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+        </div>
+        <div style={{ ...fieldStyle, marginTop: 12 }}>
+          <label style={labelStyle}>[대화성향 3] 매력 포인트</label>
+          <textarea
+            value={mqConvAttraction}
+            onChange={(e) => setMqConvAttraction(e.target.value)}
+            rows={2}
+            placeholder="남들에게 칭찬받는 대화할 때의 나의 매력 포인트?"
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+        </div>
+        <div style={{ ...fieldStyle, marginTop: 12 }}>
+          <label style={labelStyle}>[가치관 1] 사람 볼 때 중요한 것</label>
+          <textarea
+            value={mqIdealImportant}
+            onChange={(e) => setMqIdealImportant(e.target.value)}
+            rows={2}
+            placeholder="사람을 볼 때 당신이 가장 중요하게 보는 것은?"
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+        </div>
+        <div style={{ ...fieldStyle, marginTop: 12 }}>
+          <label style={labelStyle}>[가치관 2] 소울메이트라면</label>
+          <textarea
+            value={mqIdealSoulmateMust}
+            onChange={(e) => setMqIdealSoulmateMust(e.target.value)}
+            rows={2}
+            placeholder="소울메이트라면 이건 맞아야지!"
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+        </div>
+        <div style={{ ...fieldStyle, marginTop: 12 }}>
+          <label style={labelStyle}>[가치관 3] 기대하는 관계</label>
+          <textarea
+            value={mqIdealRelationship}
+            onChange={(e) => setMqIdealRelationship(e.target.value)}
+            rows={2}
+            placeholder="나의 전화 메이트와 이런 관계를 기대하고 있어요!"
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+        </div>
+        <div style={{ ...fieldStyle, marginTop: 12 }}>
+          <label style={labelStyle}>[가치관 4] 파트너에게 하고 싶은 질문</label>
+          <textarea
+            value={mqIdealPartnerQ}
+            onChange={(e) => setMqIdealPartnerQ(e.target.value)}
+            rows={2}
+            placeholder="이번 커넥팅 기간 동안 내 파트너에게 꼭 하고 싶은 질문 한가지?"
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
         </div>
       </div>
 

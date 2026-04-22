@@ -59,6 +59,14 @@ export interface Cohort {
   matchDay3Prompt?: string;
   matchDay4Prompt?: string;
   matchDay5Prompt?: string;
+  // Phase 12 Option A: 7 main question prompts
+  matchQConvStyleSelf?: string;
+  matchQConvWithStrangers?: string;
+  matchQConvAttraction?: string;
+  matchQIdealImportant?: string;
+  matchQIdealSoulmateMust?: string;
+  matchQIdealRelationship?: string;
+  matchQIdealPartnerQ?: string;
 }
 
 // ---------------------------------------------------------------------------

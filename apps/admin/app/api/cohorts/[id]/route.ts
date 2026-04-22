@@ -58,6 +58,13 @@ export async function PATCH(
     if (body.matchDay3Prompt !== undefined) patch.matchDay3Prompt = body.matchDay3Prompt || undefined;
     if (body.matchDay4Prompt !== undefined) patch.matchDay4Prompt = body.matchDay4Prompt || undefined;
     if (body.matchDay5Prompt !== undefined) patch.matchDay5Prompt = body.matchDay5Prompt || undefined;
+    if (body.matchQConvStyleSelf !== undefined) patch.matchQConvStyleSelf = body.matchQConvStyleSelf || undefined;
+    if (body.matchQConvWithStrangers !== undefined) patch.matchQConvWithStrangers = body.matchQConvWithStrangers || undefined;
+    if (body.matchQConvAttraction !== undefined) patch.matchQConvAttraction = body.matchQConvAttraction || undefined;
+    if (body.matchQIdealImportant !== undefined) patch.matchQIdealImportant = body.matchQIdealImportant || undefined;
+    if (body.matchQIdealSoulmateMust !== undefined) patch.matchQIdealSoulmateMust = body.matchQIdealSoulmateMust || undefined;
+    if (body.matchQIdealRelationship !== undefined) patch.matchQIdealRelationship = body.matchQIdealRelationship || undefined;
+    if (body.matchQIdealPartnerQ !== undefined) patch.matchQIdealPartnerQ = body.matchQIdealPartnerQ || undefined;
 
     const updated = await updateCohort(id, patch);
     if (!updated) {

@@ -70,6 +70,13 @@ type CohortRow = {
   match_day3_prompt: string | null;
   match_day4_prompt: string | null;
   match_day5_prompt: string | null;
+  match_q_conv_style_self: string | null;
+  match_q_conv_with_strangers: string | null;
+  match_q_conv_attraction: string | null;
+  match_q_ideal_important: string | null;
+  match_q_ideal_soulmate_must: string | null;
+  match_q_ideal_relationship: string | null;
+  match_q_ideal_partner_q: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -132,6 +139,13 @@ function rowToCohort(r: CohortRow): Cohort {
     matchDay3Prompt: r.match_day3_prompt ?? undefined,
     matchDay4Prompt: r.match_day4_prompt ?? undefined,
     matchDay5Prompt: r.match_day5_prompt ?? undefined,
+    matchQConvStyleSelf: r.match_q_conv_style_self ?? undefined,
+    matchQConvWithStrangers: r.match_q_conv_with_strangers ?? undefined,
+    matchQConvAttraction: r.match_q_conv_attraction ?? undefined,
+    matchQIdealImportant: r.match_q_ideal_important ?? undefined,
+    matchQIdealSoulmateMust: r.match_q_ideal_soulmate_must ?? undefined,
+    matchQIdealRelationship: r.match_q_ideal_relationship ?? undefined,
+    matchQIdealPartnerQ: r.match_q_ideal_partner_q ?? undefined,
   };
 }
 
@@ -296,6 +310,13 @@ export async function createCohort(
     match_day3_prompt: input.matchDay3Prompt ?? null,
     match_day4_prompt: input.matchDay4Prompt ?? null,
     match_day5_prompt: input.matchDay5Prompt ?? null,
+    match_q_conv_style_self: input.matchQConvStyleSelf ?? null,
+    match_q_conv_with_strangers: input.matchQConvWithStrangers ?? null,
+    match_q_conv_attraction: input.matchQConvAttraction ?? null,
+    match_q_ideal_important: input.matchQIdealImportant ?? null,
+    match_q_ideal_soulmate_must: input.matchQIdealSoulmateMust ?? null,
+    match_q_ideal_relationship: input.matchQIdealRelationship ?? null,
+    match_q_ideal_partner_q: input.matchQIdealPartnerQ ?? null,
   };
 
   const { data, error } = await getSupabaseAdmin()
@@ -339,6 +360,13 @@ export async function updateCohort(
   if (patch.matchDay3Prompt !== undefined) row.match_day3_prompt = patch.matchDay3Prompt ?? null;
   if (patch.matchDay4Prompt !== undefined) row.match_day4_prompt = patch.matchDay4Prompt ?? null;
   if (patch.matchDay5Prompt !== undefined) row.match_day5_prompt = patch.matchDay5Prompt ?? null;
+  if (patch.matchQConvStyleSelf !== undefined) row.match_q_conv_style_self = patch.matchQConvStyleSelf ?? null;
+  if (patch.matchQConvWithStrangers !== undefined) row.match_q_conv_with_strangers = patch.matchQConvWithStrangers ?? null;
+  if (patch.matchQConvAttraction !== undefined) row.match_q_conv_attraction = patch.matchQConvAttraction ?? null;
+  if (patch.matchQIdealImportant !== undefined) row.match_q_ideal_important = patch.matchQIdealImportant ?? null;
+  if (patch.matchQIdealSoulmateMust !== undefined) row.match_q_ideal_soulmate_must = patch.matchQIdealSoulmateMust ?? null;
+  if (patch.matchQIdealRelationship !== undefined) row.match_q_ideal_relationship = patch.matchQIdealRelationship ?? null;
+  if (patch.matchQIdealPartnerQ !== undefined) row.match_q_ideal_partner_q = patch.matchQIdealPartnerQ ?? null;
 
   const { data, error } = await getSupabaseAdmin()
     .from('cohorts')
