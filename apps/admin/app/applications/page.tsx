@@ -213,7 +213,7 @@ export default async function Page({
               overflowX: "auto",
             }}
           >
-            <div style={{ minWidth: 1280 }}>
+            <div style={{ minWidth: 1420 }}>
             <RowHeader ids={visibleIds} />
             {displayApps.map((app) => {
               const urls = urlMap.get(app.id);

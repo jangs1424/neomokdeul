@@ -28,7 +28,7 @@ export function AudioPlayer({ src }: { src: string }) {
         controls
         preload="none"
         src={src}
-        style={{ height: 28, maxWidth: 180 }}
+        style={{ height: 28, width: 220, maxWidth: 220 }}
       />
       <select
         value={rate}

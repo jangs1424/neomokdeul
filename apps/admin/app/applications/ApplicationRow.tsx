@@ -7,7 +7,7 @@ import { PhotoModal } from "./PhotoModal";
 import { RowCheckbox, HeaderCheckbox } from "./BulkActions";
 
 const GRID_COLS =
-  "36px 64px 44px 56px 90px 110px 80px 88px 72px 160px 60px 130px 170px";
+  "36px 64px 44px 56px 96px 126px 96px 88px 72px 260px 56px 140px 180px";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "대기",
