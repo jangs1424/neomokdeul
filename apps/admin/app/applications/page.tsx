@@ -6,6 +6,7 @@ import { listApplications, listCohorts } from "@neomokdeul/db/store";
 import { getSignedFileUrl, type Application, type Cohort } from "@neomokdeul/db";
 import { CountsWidget } from "./CountsWidget";
 import { Filters } from "./Filters";
+import { StatusTabs } from "./StatusTabs";
 import { BulkProvider, BulkBar } from "./BulkActions";
 import { ApplicationRow, RowHeader } from "./ApplicationRow";
 
@@ -169,6 +170,16 @@ export default async function Page({
 
       {/* Count cards */}
       <CountsWidget applications={scopedApps} cohort={activeCohort} />
+
+      {/* Status tabs (대기/승인/반려) */}
+      <StatusTabs
+        counts={{
+          all: scopedApps.length,
+          pending,
+          approved,
+          rejected,
+        }}
+      />
 
       {/* Filters */}
       <Filters regions={regions} />

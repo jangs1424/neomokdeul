@@ -134,19 +134,6 @@ export function Filters({ regions }: { regions: string[] }) {
       }}
     >
       <label style={labelStyle}>
-        상태
-        <select
-          value={state.status}
-          onChange={(e) => update("status", e.target.value)}
-          style={selectStyle}
-        >
-          <option value="all">전체</option>
-          <option value="pending">대기</option>
-          <option value="approved">승인</option>
-          <option value="rejected">반려</option>
-        </select>
-      </label>
-      <label style={labelStyle}>
         성별
         <select
           value={state.gender}
