@@ -2,6 +2,7 @@
 
 import type { Application } from "@neomokdeul/db";
 import { AudioPlayer } from "./AudioPlayer";
+import { PhotoModal } from "./PhotoModal";
 
 function Field({
   label,
@@ -58,25 +59,36 @@ export function ApplicationDetailPanel({
       }}
     >
       {/* Photo + voice + motivation */}
-      <div style={{ display: "flex", gap: 24, marginBottom: 24 }}>
+      <div style={{ display: "flex", gap: 28, marginBottom: 24 }}>
         {photoUrl ? (
-          <img
-            src={photoUrl}
-            alt={`${app.name} 사진`}
-            style={{
-              width: 160,
-              height: 160,
-              borderRadius: 10,
-              objectFit: "cover",
-              border: "1px solid var(--border)",
-              flexShrink: 0,
-            }}
-          />
+          <div style={{ flexShrink: 0, position: "relative" }}>
+            <PhotoModal
+              src={photoUrl}
+              alt={`${app.name} 사진`}
+              thumbSize={260}
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: 8,
+                bottom: 8,
+                padding: "3px 8px",
+                borderRadius: 999,
+                background: "rgba(0,0,0,0.6)",
+                color: "#fff",
+                fontSize: 11,
+                letterSpacing: ".03em",
+                pointerEvents: "none",
+              }}
+            >
+              클릭하면 크게 🔍
+            </div>
+          </div>
         ) : (
           <div
             style={{
-              width: 160,
-              height: 160,
+              width: 260,
+              height: 260,
               borderRadius: 10,
               background: "var(--surface-2)",
               border: "1px solid var(--border)",
