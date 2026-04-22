@@ -7,6 +7,8 @@ import type {
   CohortStatus,
   Matching,
   MatchingStatus,
+  MatchResponse,
+  MatchResponseInput,
   Exclusion,
 } from './schema';
 
@@ -504,4 +506,136 @@ export async function addExclusion(
     if (error.code === '23505') return;
     throw new Error(`[addExclusion] ${error.message}`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Match responses (Phase 11)
+// ---------------------------------------------------------------------------
+type MatchResponseRow = {
+  id: string;
+  application_id: string;
+  cohort_id: string;
+  nickname: string;
+  region: string;
+  call_times: string[];
+  mbti: string | null;
+  conv_energy: number | null;
+  conv_thinking: number | null;
+  conv_planning: number | null;
+  conv_pace: number | null;
+  conv_depth: number | null;
+  values_marriage: number | null;
+  values_career: number | null;
+  values_family: number | null;
+  values_hobby: number | null;
+  values_independence: number | null;
+  day2_answer: string | null;
+  day3_answer: string | null;
+  day4_answer: string | null;
+  day5_answer: string | null;
+  day6_answer: string | null;
+  day7_answer: string | null;
+  kakao_openchat_url: string | null;
+  submitted_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
+function rowToMatchResponse(r: MatchResponseRow): MatchResponse {
+  return {
+    id: r.id,
+    applicationId: r.application_id,
+    cohortId: r.cohort_id,
+    nickname: r.nickname,
+    region: r.region,
+    callTimes: r.call_times,
+    mbti: r.mbti ?? undefined,
+    convEnergy: r.conv_energy ?? undefined,
+    convThinking: r.conv_thinking ?? undefined,
+    convPlanning: r.conv_planning ?? undefined,
+    convPace: r.conv_pace ?? undefined,
+    convDepth: r.conv_depth ?? undefined,
+    valuesMarriage: r.values_marriage ?? undefined,
+    valuesCareer: r.values_career ?? undefined,
+    valuesFamily: r.values_family ?? undefined,
+    valuesHobby: r.values_hobby ?? undefined,
+    valuesIndependence: r.values_independence ?? undefined,
+    day2Answer: r.day2_answer ?? undefined,
+    day3Answer: r.day3_answer ?? undefined,
+    day4Answer: r.day4_answer ?? undefined,
+    day5Answer: r.day5_answer ?? undefined,
+    day6Answer: r.day6_answer ?? undefined,
+    day7Answer: r.day7_answer ?? undefined,
+    kakaoOpenchatUrl: r.kakao_openchat_url ?? undefined,
+    submittedAt: r.submitted_at,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+function inputToMatchRow(i: MatchResponseInput): Partial<MatchResponseRow> {
+  return {
+    application_id: i.applicationId,
+    cohort_id: i.cohortId,
+    nickname: i.nickname,
+    region: i.region,
+    call_times: i.callTimes,
+    mbti: i.mbti ?? null,
+    conv_energy: i.convEnergy ?? null,
+    conv_thinking: i.convThinking ?? null,
+    conv_planning: i.convPlanning ?? null,
+    conv_pace: i.convPace ?? null,
+    conv_depth: i.convDepth ?? null,
+    values_marriage: i.valuesMarriage ?? null,
+    values_career: i.valuesCareer ?? null,
+    values_family: i.valuesFamily ?? null,
+    values_hobby: i.valuesHobby ?? null,
+    values_independence: i.valuesIndependence ?? null,
+    day2_answer: i.day2Answer ?? null,
+    day3_answer: i.day3Answer ?? null,
+    day4_answer: i.day4Answer ?? null,
+    day5_answer: i.day5Answer ?? null,
+    day6_answer: i.day6Answer ?? null,
+    day7_answer: i.day7Answer ?? null,
+    kakao_openchat_url: i.kakaoOpenchatUrl ?? null,
+  };
+}
+
+export async function getMatchResponseByApplication(
+  applicationId: string,
+): Promise<MatchResponse | null> {
+  const { data, error } = await getSupabaseAdmin()
+    .from('match_responses')
+    .select('*')
+    .eq('application_id', applicationId)
+    .maybeSingle();
+  if (error) throw new Error(`[getMatchResponse] ${error.message}`);
+  return data ? rowToMatchResponse(data as MatchResponseRow) : null;
+}
+
+export async function listMatchResponses(
+  cohortId: string,
+): Promise<MatchResponse[]> {
+  const { data, error } = await getSupabaseAdmin()
+    .from('match_responses')
+    .select('*')
+    .eq('cohort_id', cohortId)
+    .order('submitted_at', { ascending: true });
+  if (error) throw new Error(`[listMatchResponses] ${error.message}`);
+  return (data ?? []).map((r) => rowToMatchResponse(r as MatchResponseRow));
+}
+
+export async function upsertMatchResponse(
+  input: MatchResponseInput,
+): Promise<MatchResponse> {
+  const row = inputToMatchRow(input);
+  // Overwrite submitted_at to now() on re-submit
+  const rowWithTs = { ...row, submitted_at: new Date().toISOString() };
+  const { data, error } = await getSupabaseAdmin()
+    .from('match_responses')
+    .upsert(rowWithTs, { onConflict: 'application_id' })
+    .select('*')
+    .single();
+  if (error) throw new Error(`[upsertMatchResponse] ${error.message}`);
+  return rowToMatchResponse(data as MatchResponseRow);
 }

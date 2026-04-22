@@ -3,18 +3,32 @@ import {
   getSupabaseAdmin,
   listApplications,
   listExclusions,
+  listMatchResponses,
   listMatchings,
   createMatching,
   type Application,
+  type MatchResponse,
   type Matching,
 } from "@neomokdeul/db";
 
 // -----------------------------------------------------------------------------
-// Matching algorithm — MVP greedy with heuristic scoring.
+// Matching algorithm — Phase 11-B rewrite.
 //
-// TODO(phase-6+): replace scorePair() with a call to Claude (reasoning text)
-// using the applicants' motivation + call_times + mbti + region. Keep structure:
-//   score 0..1, reasoning string.
+// Pool: applications where status='approved' AND a match_response row exists
+// for that applicationId. The heuristic uses the match_response fields
+// (callTimes, conv*, values*, region, mbti) — NOT the application form.
+//
+// Weighted score (0..1):
+//   0.30 callTimeOverlap
+//   0.25 convStyleComplement   (actually similarity, for MVP)
+//   0.25 valuesAlignment       (cosine similarity, scaled to 0..1)
+//   0.10 regionProximity
+//   0.10 mbtiCompat
+//
+// TODO(phase-12+): replace scorePair() with a Claude reasoning pass that
+// consumes both applicants' day-by-day answers + motivation and produces
+// `{ score, reasoning }`. Keep the greedy pairing harness as-is — only the
+// per-pair scorer needs to be swapped in.
 // -----------------------------------------------------------------------------
 
 type RunBody = {
@@ -22,80 +36,213 @@ type RunBody = {
   round?: unknown;
 };
 
+const METRO_REGIONS = new Set(["서울", "경기도", "경기", "인천"]);
+
 function normalizePhonePair(a: string, b: string): [string, string] {
   return a < b ? [a, b] : [b, a];
 }
 
-function scorePair(male: Application, female: Application): number {
-  // Age proximity component: within 10 years → 1.0, beyond → decays to 0.
-  const ageDelta = Math.abs(male.birthYear - female.birthYear);
-  const ageScore = Math.max(0, 1 - ageDelta / 10);
+// ---------------------------------------------------------------------------
+// Score components
+// ---------------------------------------------------------------------------
 
-  // Call-time overlap component.
-  const maleTimes = new Set(male.callTimes ?? []);
-  const sharedCount = (female.callTimes ?? []).filter((t) => maleTimes.has(t)).length;
+function callTimeOverlap(mr: MatchResponse, fr: MatchResponse): { score: number; shared: number } {
+  const maleTimes = new Set(mr.callTimes ?? []);
+  const shared = (fr.callTimes ?? []).filter((t) => maleTimes.has(t)).length;
   const maxLen = Math.max(
-    1,
-    male.callTimes?.length ?? 0,
-    female.callTimes?.length ?? 0,
+    mr.callTimes?.length ?? 0,
+    fr.callTimes?.length ?? 0,
   );
-  const timeScore = sharedCount / maxLen;
-
-  // Blend (both must be decent → multiply). Clamp to [0,1] with 2 decimals.
-  const raw = ageScore * (0.25 + 0.75 * timeScore);
-  return Math.round(raw * 100) / 100;
-}
-
-function reasoningStub(
-  male: Application,
-  female: Application,
-  score: number,
-): string {
-  const shared =
-    (male.callTimes ?? []).filter((t) =>
-      (female.callTimes ?? []).includes(t),
-    ).join(", ") || "없음";
-  return [
-    `연령 차이 ${Math.abs(male.birthYear - female.birthYear)}년`,
-    `공유 통화 시간대: ${shared}`,
-    `MBTI ${male.mbti ?? "—"} × ${female.mbti ?? "—"}`,
-    `heuristic score ${score.toFixed(2)} (Claude 미연동 · stub)`,
-  ].join(" · ");
+  if (maxLen === 0) return { score: 0, shared: 0 };
+  return { score: shared / maxLen, shared };
 }
 
 /**
- * Greedy pairing.
- * - Scores every (male, female) pair.
+ * Per-dim similarity on 1..5 Likert: 1 - |m-f|/4 → 0..1. Missing dims skipped.
+ * If no dims, returns 0.5 (neutral).
+ */
+function convStyleComplement(mr: MatchResponse, fr: MatchResponse): number {
+  const dims: [number | undefined, number | undefined][] = [
+    [mr.convEnergy, fr.convEnergy],
+    [mr.convThinking, fr.convThinking],
+    [mr.convPlanning, fr.convPlanning],
+    [mr.convPace, fr.convPace],
+    [mr.convDepth, fr.convDepth],
+  ];
+  const present = dims.filter(
+    ([a, b]) => typeof a === "number" && typeof b === "number",
+  ) as [number, number][];
+  if (present.length === 0) return 0.5;
+  const sum = present.reduce((acc, [a, b]) => acc + (1 - Math.abs(a - b) / 4), 0);
+  return sum / present.length;
+}
+
+/**
+ * Cosine similarity on the 5-dim values vectors, mapped from [-1,1] to [0,1]
+ * via (cos+1)/2. Missing dims default to 3 (neutral midpoint of 1..5 Likert).
+ */
+function valuesAlignment(mr: MatchResponse, fr: MatchResponse): number {
+  const maleVec = [
+    mr.valuesMarriage ?? 3,
+    mr.valuesCareer ?? 3,
+    mr.valuesFamily ?? 3,
+    mr.valuesHobby ?? 3,
+    mr.valuesIndependence ?? 3,
+  ];
+  const femaleVec = [
+    fr.valuesMarriage ?? 3,
+    fr.valuesCareer ?? 3,
+    fr.valuesFamily ?? 3,
+    fr.valuesHobby ?? 3,
+    fr.valuesIndependence ?? 3,
+  ];
+  let dot = 0;
+  let mn = 0;
+  let fn = 0;
+  for (let i = 0; i < 5; i++) {
+    dot += maleVec[i] * femaleVec[i];
+    mn += maleVec[i] * maleVec[i];
+    fn += femaleVec[i] * femaleVec[i];
+  }
+  if (mn === 0 || fn === 0) return 0.5;
+  const cos = dot / (Math.sqrt(mn) * Math.sqrt(fn));
+  return (cos + 1) / 2;
+}
+
+function regionProximity(mr: MatchResponse, fr: MatchResponse): number {
+  const m = (mr.region ?? "").trim();
+  const f = (fr.region ?? "").trim();
+  if (!m || !f) return 0.3;
+  if (m === f) return 1.0;
+  if (METRO_REGIONS.has(m) && METRO_REGIONS.has(f)) return 0.6;
+  return 0.3;
+}
+
+function mbtiCompat(mr: MatchResponse, fr: MatchResponse): number {
+  const m = (mr.mbti ?? "").toUpperCase();
+  const f = (fr.mbti ?? "").toUpperCase();
+  if (m.length !== 4 || f.length !== 4) return 0.5;
+  let score = 0.3; // base
+  // I/E + N/S axis
+  if (m[0] === f[0] && m[1] === f[1]) score += 0.3;
+  // J/P
+  if (m[3] === f[3]) score += 0.2;
+  // T/F
+  if (m[2] === f[2]) score += 0.2;
+  return Math.min(1.0, score);
+}
+
+// ---------------------------------------------------------------------------
+// Composite score + reasoning
+// ---------------------------------------------------------------------------
+
+interface ScoreBreakdown {
+  total: number;
+  callTime: number;
+  shared: number;
+  convStyle: number;
+  values: number;
+  region: number;
+  mbti: number;
+}
+
+function scorePair(mr: MatchResponse, fr: MatchResponse): ScoreBreakdown {
+  const { score: ct, shared } = callTimeOverlap(mr, fr);
+  const cs = convStyleComplement(mr, fr);
+  const va = valuesAlignment(mr, fr);
+  const rp = regionProximity(mr, fr);
+  const mb = mbtiCompat(mr, fr);
+  const total =
+    0.30 * ct +
+    0.25 * cs +
+    0.25 * va +
+    0.10 * rp +
+    0.10 * mb;
+  return {
+    total: Math.round(total * 100) / 100,
+    callTime: ct,
+    shared,
+    convStyle: cs,
+    values: va,
+    region: rp,
+    mbti: mb,
+  };
+}
+
+function reasoningFor(
+  mr: MatchResponse,
+  fr: MatchResponse,
+  b: ScoreBreakdown,
+): string {
+  const mReg = (mr.region ?? "—").trim() || "—";
+  const fReg = (fr.region ?? "—").trim() || "—";
+  const regionNote =
+    b.region >= 0.99
+      ? `${mReg} (동일 지역)`
+      : b.region >= 0.59
+        ? `${mReg}-${fReg} (수도권 근접)`
+        : `${mReg}-${fReg}`;
+  return [
+    `통화시간 ${b.shared}칸 공유`,
+    `대화성향 유사도 ${b.convStyle.toFixed(2)}`,
+    `가치관 정렬 ${b.values.toFixed(2)}`,
+    regionNote,
+  ].join(" · ");
+}
+
+// ---------------------------------------------------------------------------
+// Greedy pairing (unchanged structure)
+// ---------------------------------------------------------------------------
+
+/**
+ * Greedy pairing:
+ * - Scores every (male, female) pair using match_response data.
  * - Sorts descending.
  * - Skips pairs blocked by exclusionSet or the optional "avoid" map
  *   (used to prevent round-2 from reusing round-1 partners).
+ * - Also skips pairs with zero callTime overlap (hard filter).
  */
 function greedyPair(
   males: Application[],
   females: Application[],
+  responseByAppId: Map<string, MatchResponse>,
   exclusionSet: Set<string>,
   avoid?: Map<string, Set<string>>,
-): { maleId: string; femaleId: string; score: number }[] {
+): {
+  maleId: string;
+  femaleId: string;
+  score: number;
+  reasoning: string;
+}[] {
   type Candidate = {
     maleId: string;
     femaleId: string;
-    malePhone: string;
-    femalePhone: string;
     score: number;
+    reasoning: string;
   };
 
   const candidates: Candidate[] = [];
   for (const m of males) {
+    const mr = responseByAppId.get(m.id);
+    if (!mr) continue;
     for (const f of females) {
+      const fr = responseByAppId.get(f.id);
+      if (!fr) continue;
+      // Hard filter: must share ≥1 call-time slot
+      const maleTimes = new Set(mr.callTimes ?? []);
+      const shared = (fr.callTimes ?? []).some((t) => maleTimes.has(t));
+      if (!shared) continue;
+
       const [a, b] = normalizePhonePair(m.phone, f.phone);
       if (exclusionSet.has(`${a}|${b}`)) continue;
       if (avoid?.get(m.id)?.has(f.id)) continue;
+
+      const breakdown = scorePair(mr, fr);
       candidates.push({
         maleId: m.id,
         femaleId: f.id,
-        malePhone: m.phone,
-        femalePhone: f.phone,
-        score: scorePair(m, f),
+        score: breakdown.total,
+        reasoning: reasoningFor(mr, fr, breakdown),
       });
     }
   }
@@ -104,18 +251,27 @@ function greedyPair(
 
   const usedMale = new Set<string>();
   const usedFemale = new Set<string>();
-  const result: { maleId: string; femaleId: string; score: number }[] = [];
+  const result: {
+    maleId: string;
+    femaleId: string;
+    score: number;
+    reasoning: string;
+  }[] = [];
 
   for (const c of candidates) {
     if (usedMale.has(c.maleId)) continue;
     if (usedFemale.has(c.femaleId)) continue;
     usedMale.add(c.maleId);
     usedFemale.add(c.femaleId);
-    result.push({ maleId: c.maleId, femaleId: c.femaleId, score: c.score });
+    result.push(c);
   }
 
   return result;
 }
+
+// ---------------------------------------------------------------------------
+// Route
+// ---------------------------------------------------------------------------
 
 export async function POST(req: Request) {
   let body: RunBody;
@@ -136,10 +292,19 @@ export async function POST(req: Request) {
   else if (body.round === "both") rounds = [1, 2];
   else return NextResponse.json({ error: "invalid round" }, { status: 400 });
 
-  // Load candidate pool (MVP: approved, payment gate deferred)
-  const allApps = await listApplications();
+  // Load candidate pool. Eligibility = approved AND has match_response.
+  const [allApps, responses] = await Promise.all([
+    listApplications(),
+    listMatchResponses(cohortId),
+  ]);
+  const responseByAppId = new Map<string, MatchResponse>();
+  for (const r of responses) responseByAppId.set(r.applicationId, r);
+
   const pool = allApps.filter(
-    (a) => a.cohortId === cohortId && a.status === "approved",
+    (a) =>
+      a.cohortId === cohortId &&
+      a.status === "approved" &&
+      responseByAppId.has(a.id),
   );
   const males = pool.filter((a) => a.gender === "male");
   const females = pool.filter((a) => a.gender === "female");
@@ -203,21 +368,20 @@ export async function POST(req: Request) {
     const pairs = greedyPair(
       pairableMales,
       pairableFemales,
+      responseByAppId,
       exclusionSet,
       avoid,
     );
 
     // 5. Insert as drafts
     for (const p of pairs) {
-      const male = pairableMales.find((m) => m.id === p.maleId)!;
-      const female = pairableFemales.find((f) => f.id === p.femaleId)!;
       await createMatching({
         cohortId,
         round,
         maleApplicationId: p.maleId,
         femaleApplicationId: p.femaleId,
         score: p.score,
-        reasoning: reasoningStub(male, female, p.score),
+        reasoning: p.reasoning,
       } as Omit<
         Matching,
         "id" | "createdAt" | "updatedAt" | "publishedAt" | "supersededBy" | "status"
@@ -230,6 +394,7 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ok: true,
     cohortId,
+    poolSize: pool.length,
     round1: counts.round1 ?? 0,
     round2: counts.round2 ?? 0,
   });

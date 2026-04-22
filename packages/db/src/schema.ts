@@ -82,3 +82,49 @@ export interface Exclusion {
   sourceCohortId?: string;
   createdAt: string;
 }
+
+// ---------------------------------------------------------------------------
+// Match form response (Phase 11) — per-applicant answers filled on Day 1.
+// Drives the matching algorithm (not the application form).
+// ---------------------------------------------------------------------------
+export interface MatchResponse {
+  id: string;
+  applicationId: string;
+  cohortId: string;
+
+  nickname: string;
+  region: string;
+  callTimes: string[];
+  mbti?: string;
+
+  // Conversation style (1-5 Likert)
+  convEnergy?: number;   // introvert ↔ extrovert
+  convThinking?: number; // logical ↔ emotional
+  convPlanning?: number; // planner ↔ spontaneous
+  convPace?: number;     // listener ↔ talker
+  convDepth?: number;    // light ↔ deep
+
+  // Values (1-5 importance)
+  valuesMarriage?: number;
+  valuesCareer?: number;
+  valuesFamily?: number;
+  valuesHobby?: number;
+  valuesIndependence?: number;
+
+  // Day-by-day topics
+  day2Answer?: string;
+  day3Answer?: string;
+  day4Answer?: string;
+  day5Answer?: string;
+  day6Answer?: string;
+  day7Answer?: string;
+
+  // Male only
+  kakaoOpenchatUrl?: string;
+
+  submittedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type MatchResponseInput = Omit<MatchResponse, 'id' | 'submittedAt' | 'createdAt' | 'updatedAt'>;

@@ -7,10 +7,14 @@ export function RunButton({
   cohortId,
   menCount,
   womenCount,
+  responseCount,
+  totalApproved,
 }: {
   cohortId: string;
   menCount: number;
   womenCount: number;
+  responseCount: number;
+  totalApproved: number;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -18,6 +22,11 @@ export function RunButton({
   const router = useRouter();
   const imbalance = Math.abs(menCount - womenCount);
   const excessSide = menCount > womenCount ? "남성" : "여성";
+  const lowResponse =
+    totalApproved > 0 && responseCount < totalApproved;
+  const responseRatio =
+    totalApproved > 0 ? responseCount / totalApproved : 0;
+  const severeLowResponse = totalApproved > 0 && responseRatio < 0.5;
 
   async function run() {
     setBusy(true);
@@ -117,7 +126,7 @@ export function RunButton({
             <div
               style={{
                 padding: "10px 12px",
-                marginBottom: 16,
+                marginBottom: 10,
                 borderRadius: 6,
                 background: "var(--surface-2)",
                 fontSize: 12,
@@ -125,6 +134,7 @@ export function RunButton({
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
+                flexWrap: "wrap",
               }}
             >
               <span>매칭 가능 인원:</span>
@@ -137,6 +147,26 @@ export function RunButton({
                 </span>
               )}
             </div>
+
+            {lowResponse && (
+              <div
+                style={{
+                  padding: "10px 12px",
+                  marginBottom: 16,
+                  borderRadius: 6,
+                  background: severeLowResponse ? "#fee2e2" : "var(--warning-soft)",
+                  border: `1px solid ${severeLowResponse ? "#fca5a5" : "#f59e0b"}`,
+                  fontSize: 12,
+                  color: severeLowResponse ? "#991b1b" : "#92400e",
+                  lineHeight: 1.5,
+                }}
+              >
+                <strong>
+                  {responseCount}/{totalApproved}명만 매칭 폼 제출
+                </strong>{" "}
+                — 나머지는 매칭 제외됩니다. 계속할까요?
+              </div>
+            )}
 
             <div style={{ marginBottom: 16 }}>
               <label

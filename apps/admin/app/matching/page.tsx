@@ -4,14 +4,17 @@ export const revalidate = 0;
 import {
   listApplications,
   listCohorts,
+  listMatchResponses,
   listMatchings,
   type Application,
   type Cohort,
+  type MatchResponse,
   type Matching,
 } from "@neomokdeul/db";
 import { MatchingBoard, PublishAllClient } from "./MatchingBoard";
 import { RunButton } from "./RunButton";
 import { ExportCsv } from "./ExportCsv";
+import { MatchFormTracker } from "./MatchFormTracker";
 import { UnmatchedPanel } from "./UnmatchedPanel";
 
 export default async function MatchingPage({
@@ -36,22 +39,27 @@ export default async function MatchingPage({
     (c) => c.id === selectedCohortId,
   );
 
-  const matchings: Matching[] = selectedCohort
-    ? await listMatchings(selectedCohort.id)
-    : [];
+  const [matchings, responses]: [Matching[], MatchResponse[]] = selectedCohort
+    ? await Promise.all([
+        listMatchings(selectedCohort.id),
+        listMatchResponses(selectedCohort.id),
+      ])
+    : [[], []];
 
   // Cohort-scoped apps
   const cohortApps = selectedCohort
     ? allApps.filter((a) => a.cohortId === selectedCohort.id)
     : [];
 
-  // MVP: ready = approved (payment gate not wired yet)
-  const readyMen = cohortApps.filter(
-    (a) => a.gender === "male" && a.status === "approved",
+  // Eligibility = approved AND match_response submitted.
+  // Non-submitters stay visible in MatchFormTracker but are NOT matched.
+  const approvedApps = cohortApps.filter((a) => a.status === "approved");
+  const responseByAppId = new Set(responses.map((r) => r.applicationId));
+  const eligibleForMatching = approvedApps.filter((a) =>
+    responseByAppId.has(a.id),
   );
-  const readyWomen = cohortApps.filter(
-    (a) => a.gender === "female" && a.status === "approved",
-  );
+  const readyMen = eligibleForMatching.filter((a) => a.gender === "male");
+  const readyWomen = eligibleForMatching.filter((a) => a.gender === "female");
 
   const r1Draft = matchings.filter((m) => m.round === 1 && m.status === "draft");
   const r1Pub = matchings.filter((m) => m.round === 1 && m.status === "published");
@@ -192,6 +200,8 @@ export default async function MatchingPage({
               cohortId={selectedCohort.id}
               menCount={readyMen.length}
               womenCount={readyWomen.length}
+              responseCount={eligibleForMatching.length}
+              totalApproved={approvedApps.length}
             />
             <ExportCsv
               cohortSlug={selectedCohort.slug}
@@ -202,6 +212,14 @@ export default async function MatchingPage({
           </div>
         )}
       </div>
+
+      {selectedCohort && (
+        <MatchFormTracker
+          cohortId={selectedCohort.id}
+          approvedApps={approvedApps}
+          responses={responses}
+        />
+      )}
 
       {selectedCohort && imbalance > 0 && (
         <div
@@ -250,10 +268,14 @@ export default async function MatchingPage({
               marginBottom: 24,
             }}
           >
-            <StatCard label="승인 남성 (매칭 가능)" value={String(readyMen.length)} tone="info" />
             <StatCard
-              label="승인 여성 (매칭 가능)"
-              value={String(readyWomen.length)}
+              label="매칭 대상 남성 (폼 제출)"
+              value={`${readyMen.length} / ${approvedApps.filter((a) => a.gender === "male").length}`}
+              tone="info"
+            />
+            <StatCard
+              label="매칭 대상 여성 (폼 제출)"
+              value={`${readyWomen.length} / ${approvedApps.filter((a) => a.gender === "female").length}`}
               tone="info"
             />
             <StatCard

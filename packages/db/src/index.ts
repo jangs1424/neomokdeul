@@ -37,6 +37,8 @@ export type {
   Matching,
   MatchingStatus,
   Exclusion,
+  MatchResponse,
+  MatchResponseInput,
 } from './schema';
 export {
   listApplications,
@@ -55,6 +57,9 @@ export {
   updateMatching,
   listExclusions,
   addExclusion,
+  getMatchResponseByApplication,
+  listMatchResponses,
+  upsertMatchResponse,
 } from './store';
 export { getSupabaseAdmin } from './supabase';
 export { getSignedFileUrl } from './storage';

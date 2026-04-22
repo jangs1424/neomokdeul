@@ -1,7 +1,12 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { verifyToken } from '../lib/token';
-import { getApplication, getCohort, getMatchingForApplication } from '@neomokdeul/db';
+import {
+  getApplication,
+  getCohort,
+  getMatchingForApplication,
+  getMatchResponseByApplication,
+} from '@neomokdeul/db';
 import { computeProgramDay } from '../lib/program';
 import { getMission } from '../lib/missions';
 import { DayHeader } from './DayHeader';
@@ -23,6 +28,11 @@ export default async function HomePage() {
     getCohort(payload.cohortId),
   ]);
   if (!me || !cohort) redirect('/expired');
+
+  // Check whether participant has submitted the Day 1 match form.
+  const matchResponse = await getMatchResponseByApplication(me.id);
+  const matchFormOpen =
+    cohort.status === 'recruiting' || cohort.status === 'running';
 
   const p = computeProgramDay(cohort.programStartDate, cohort.programEndDate);
 
@@ -61,6 +71,46 @@ export default async function HomePage() {
       }}
     >
       <DayHeader cohort={cohort} />
+
+      {matchFormOpen && (
+        <div style={{ padding: '12px 20px 0' }}>
+          {!matchResponse ? (
+            <a
+              href="/match-form"
+              style={{
+                display: 'block',
+                padding: '14px 16px',
+                background: '#fff6d6',
+                border: '1px solid #e6d57a',
+                borderRadius: 12,
+                textDecoration: 'none',
+                color: '#6b5d1a',
+                fontSize: 14,
+                fontWeight: 600,
+              }}
+            >
+              ⚠ 매칭 폼 작성이 필요합니다. 지금 작성 →
+            </a>
+          ) : (
+            <a
+              href="/match-form"
+              style={{
+                display: 'inline-block',
+                padding: '6px 12px',
+                background: 'rgba(90,122,92,0.1)',
+                border: '1px solid var(--forest)',
+                borderRadius: 999,
+                textDecoration: 'none',
+                color: 'var(--forest-deep)',
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
+              ✓ 매칭 폼 제출됨 · 수정 →
+            </a>
+          )}
+        </div>
+      )}
 
       <PartnerCard
         partnerApp={partnerApp}
