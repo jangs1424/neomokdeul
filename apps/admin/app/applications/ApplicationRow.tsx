@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import type { Application } from "@neomokdeul/db";
 import { ActionButtons } from "./ActionButtons";
 import { AudioPlayer } from "./AudioPlayer";
 import { PhotoModal } from "./PhotoModal";
-import { ApplicationDetailModal } from "./ApplicationDetailModal";
+import { ApplicationDetailPanel } from "./ApplicationDetailPanel";
 import { RowCheckbox, HeaderCheckbox } from "./BulkActions";
 
 const GRID_COLS =
@@ -140,19 +139,9 @@ export function ApplicationRow({
   voiceSignedUrl?: string | null;
   photoSignedUrl?: string | null;
 }) {
-  const [detailOpen, setDetailOpen] = useState(false);
   return (
-    <>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setDetailOpen(true)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setDetailOpen(true);
-          }
-        }}
+    <details>
+      <summary
         style={{
           display: "grid",
           gridTemplateColumns: GRID_COLS,
@@ -162,6 +151,7 @@ export function ApplicationRow({
           color: "var(--text)",
           alignItems: "center",
           gap: 8,
+          listStyle: "none",
           cursor: "pointer",
         }}
       >
@@ -208,14 +198,12 @@ export function ApplicationRow({
             <ActionButtons id={app.id} variant="revert" />
           )}
         </span>
-      </div>
-      <ApplicationDetailModal
+      </summary>
+      <ApplicationDetailPanel
         app={app}
         voiceUrl={voiceSignedUrl ?? null}
         photoUrl={photoSignedUrl ?? null}
-        open={detailOpen}
-        onClose={() => setDetailOpen(false)}
       />
-    </>
+    </details>
   );
 }
