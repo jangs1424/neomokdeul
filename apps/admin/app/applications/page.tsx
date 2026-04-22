@@ -209,10 +209,11 @@ export default async function Page({
             style={{
               border: "1px solid var(--border)",
               borderRadius: 8,
-              overflow: "hidden",
               background: "#fff",
+              overflowX: "auto",
             }}
           >
+            <div style={{ minWidth: 1280 }}>
             <RowHeader ids={visibleIds} />
             {displayApps.map((app) => {
               const urls = urlMap.get(app.id);
@@ -225,6 +226,7 @@ export default async function Page({
                 />
               );
             })}
+            </div>
           </div>
         )}
       </BulkProvider>
