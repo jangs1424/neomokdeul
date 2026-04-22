@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import type { Application } from "@neomokdeul/db";
 import { ActionButtons } from "./ActionButtons";
 import { AudioPlayer } from "./AudioPlayer";
 import { PhotoModal } from "./PhotoModal";
+import { ApplicationDetailModal } from "./ApplicationDetailModal";
 import { RowCheckbox, HeaderCheckbox } from "./BulkActions";
 
 const GRID_COLS =
@@ -138,9 +140,19 @@ export function ApplicationRow({
   voiceSignedUrl?: string | null;
   photoSignedUrl?: string | null;
 }) {
+  const [detailOpen, setDetailOpen] = useState(false);
   return (
-    <details>
-      <summary
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setDetailOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setDetailOpen(true);
+          }
+        }}
         style={{
           display: "grid",
           gridTemplateColumns: GRID_COLS,
@@ -150,7 +162,6 @@ export function ApplicationRow({
           color: "var(--text)",
           alignItems: "center",
           gap: 8,
-          listStyle: "none",
           cursor: "pointer",
         }}
       >
@@ -190,43 +201,21 @@ export function ApplicationRow({
         <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
           {formatDate(app.createdAt)}
         </span>
-        <span>
+        <span onClick={(e) => e.stopPropagation()}>
           {app.status === "pending" ? (
             <ActionButtons id={app.id} />
           ) : (
             <ActionButtons id={app.id} variant="revert" />
           )}
         </span>
-      </summary>
-      <div
-        style={{
-          padding: "16px 20px 20px",
-          background: "var(--surface)",
-          borderBottom: "1px solid var(--border)",
-          fontSize: 13,
-          color: "var(--text)",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "16px 32px",
-        }}
-      >
-        <div style={{ gridColumn: "1 / -1" }}>
-          <DetailField label="지원 동기" value={app.motivation} multiline />
-        </div>
-        <DetailField
-          label="통화 가능 시간대"
-          value={app.callTimes?.length ? app.callTimes.join(" · ") : "—"}
-        />
-        <DetailField
-          label="이전 기수 참여"
-          value={app.previousCohort ? "있음" : "없음"}
-        />
-        <DetailField label="유입경로" value={app.source} />
-        <DetailField
-          label="동의 타임스탬프"
-          value={app.agreed ? formatFull(app.createdAt) : "—"}
-        />
       </div>
-    </details>
+      <ApplicationDetailModal
+        app={app}
+        voiceUrl={voiceSignedUrl ?? null}
+        photoUrl={photoSignedUrl ?? null}
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+      />
+    </>
   );
 }
