@@ -12,6 +12,7 @@ import {
 import { MatchingBoard, PublishAllClient } from "./MatchingBoard";
 import { RunButton } from "./RunButton";
 import { ExportCsv } from "./ExportCsv";
+import { UnmatchedPanel } from "./UnmatchedPanel";
 
 export default async function MatchingPage({
   searchParams,
@@ -56,6 +57,38 @@ export default async function MatchingPage({
   const r1Pub = matchings.filter((m) => m.round === 1 && m.status === "published");
   const r2Draft = matchings.filter((m) => m.round === 2 && m.status === "draft");
   const r2Pub = matchings.filter((m) => m.round === 2 && m.status === "published");
+
+  // Compute unmatched applicants per round
+  const r1Active = [...r1Draft, ...r1Pub];
+  const r2Active = [...r2Draft, ...r2Pub];
+  const r1PairedIds = new Set(
+    r1Active.flatMap((m) => [m.maleApplicationId, m.femaleApplicationId]),
+  );
+  const r2PairedIds = new Set(
+    r2Active.flatMap((m) => [m.maleApplicationId, m.femaleApplicationId]),
+  );
+  const hasAnyMatchings = matchings.length > 0;
+  // Before a round is run, its "paired" set is empty → everyone is "predicted unmatched"
+  // In that case, fall back to the min(men, women) cap prediction.
+  const predictUnmatched = (men: Application[], women: Application[]) => {
+    const excess = Math.abs(men.length - women.length);
+    const extraSide = men.length > women.length ? men : women;
+    return extraSide.slice(-excess);
+  };
+  const r1UnmatchedMen = r1Active.length > 0
+    ? readyMen.filter((m) => !r1PairedIds.has(m.id))
+    : predictUnmatched(readyMen, readyWomen).filter((a) => a.gender === "male");
+  const r1UnmatchedWomen = r1Active.length > 0
+    ? readyWomen.filter((f) => !r1PairedIds.has(f.id))
+    : predictUnmatched(readyMen, readyWomen).filter((a) => a.gender === "female");
+  const r2UnmatchedMen = r2Active.length > 0
+    ? readyMen.filter((m) => !r2PairedIds.has(m.id))
+    : [];
+  const r2UnmatchedWomen = r2Active.length > 0
+    ? readyWomen.filter((f) => !r2PairedIds.has(f.id))
+    : [];
+
+  const imbalance = Math.abs(readyMen.length - readyWomen.length);
 
   // Look-up maps for board rendering
   const appsById: Record<string, Application> = {};
@@ -155,7 +188,11 @@ export default async function MatchingPage({
 
         {selectedCohort && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <RunButton cohortId={selectedCohort.id} />
+            <RunButton
+              cohortId={selectedCohort.id}
+              menCount={readyMen.length}
+              womenCount={readyWomen.length}
+            />
             <ExportCsv
               cohortSlug={selectedCohort.slug}
               matchings={matchings}
@@ -165,6 +202,30 @@ export default async function MatchingPage({
           </div>
         )}
       </div>
+
+      {selectedCohort && imbalance > 0 && (
+        <div
+          style={{
+            padding: "12px 16px",
+            marginBottom: 16,
+            background: "var(--warning-soft)",
+            border: "1px solid #f59e0b",
+            borderRadius: 8,
+            color: "#92400e",
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <span style={{ fontSize: 16 }}>⚠️</span>
+          <span>
+            <strong>성비 차이 {imbalance}명.</strong> 남 {readyMen.length} / 여 {readyWomen.length} —
+            적은 쪽({readyMen.length < readyWomen.length ? "남성" : "여성"})에 맞춰 매칭되고,
+            초과 인원은 매칭 미성사됩니다. 다음 기수 이월 / 환불을 미리 준비하세요.
+          </span>
+        </div>
+      )}
 
       {!selectedCohort ? (
         <div
@@ -206,6 +267,15 @@ export default async function MatchingPage({
               tone="warning"
             />
           </div>
+
+          {/* Unmatched applicants */}
+          <UnmatchedPanel
+            r1Men={r1UnmatchedMen}
+            r1Women={r1UnmatchedWomen}
+            r2Men={r2UnmatchedMen}
+            r2Women={r2UnmatchedWomen}
+            hasMatchings={hasAnyMatchings}
+          />
 
           {/* Board */}
           <MatchingBoard

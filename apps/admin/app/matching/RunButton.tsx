@@ -3,11 +3,21 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function RunButton({ cohortId }: { cohortId: string }) {
+export function RunButton({
+  cohortId,
+  menCount,
+  womenCount,
+}: {
+  cohortId: string;
+  menCount: number;
+  womenCount: number;
+}) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [round, setRound] = useState<"1" | "2" | "both">("1");
   const router = useRouter();
+  const imbalance = Math.abs(menCount - womenCount);
+  const excessSide = menCount > womenCount ? "남성" : "여성";
 
   async function run() {
     setBusy(true);
@@ -97,12 +107,36 @@ export function RunButton({ cohortId }: { cohortId: string }) {
               style={{
                 fontSize: 13,
                 color: "var(--text-muted)",
-                marginBottom: 16,
+                marginBottom: 12,
                 lineHeight: 1.6,
               }}
             >
               선택한 회차의 기존 draft 매칭은 삭제되고 새로 생성됩니다. Published 매칭은 유지됩니다.
             </p>
+
+            <div
+              style={{
+                padding: "10px 12px",
+                marginBottom: 16,
+                borderRadius: 6,
+                background: "var(--surface-2)",
+                fontSize: 12,
+                color: "var(--text)",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <span>매칭 가능 인원:</span>
+              <strong>남 {menCount}</strong>
+              <span style={{ color: "var(--text-muted)" }}>·</span>
+              <strong>여 {womenCount}</strong>
+              {imbalance > 0 && (
+                <span style={{ color: "#92400e", fontWeight: 600, marginLeft: 6 }}>
+                  → {excessSide} {imbalance}명 미성사 예정
+                </span>
+              )}
+            </div>
 
             <div style={{ marginBottom: 16 }}>
               <label
