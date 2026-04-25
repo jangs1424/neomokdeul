@@ -1,20 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Nanum_Myeongjo, IBM_Plex_Sans_KR } from "next/font/google";
 import "./globals.css";
-
-const serif = Nanum_Myeongjo({
-  subsets: ["latin"],
-  weight: ["400", "700", "800"],
-  variable: "--font-serif",
-  display: "swap",
-});
-
-const sans = IBM_Plex_Sans_KR({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-sans",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Socially · 너의 목소리가 들려",
@@ -26,12 +11,12 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#fbfaf6",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko" className={`${serif.variable} ${sans.variable}`}>
+    <html lang="ko">
       <body>{children}</body>
     </html>
   );

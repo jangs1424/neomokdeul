@@ -77,6 +77,14 @@ type CohortRow = {
   match_q_ideal_soulmate_must: string | null;
   match_q_ideal_relationship: string | null;
   match_q_ideal_partner_q: string | null;
+  match_q_conv_style_self_choices: string[] | null;
+  match_q_conv_with_strangers_choices: string[] | null;
+  match_q_conv_attraction_choices: string[] | null;
+  match_q_ideal_important_choices: string[] | null;
+  match_q_ideal_soulmate_must_choices: string[] | null;
+  match_q_ideal_relationship_choices: string[] | null;
+  match_q_ideal_partner_q_choices: string[] | null;
+  kakao_openchat_help_image_urls: string[] | null;
   created_at: string;
   updated_at: string;
 };
@@ -146,6 +154,14 @@ function rowToCohort(r: CohortRow): Cohort {
     matchQIdealSoulmateMust: r.match_q_ideal_soulmate_must ?? undefined,
     matchQIdealRelationship: r.match_q_ideal_relationship ?? undefined,
     matchQIdealPartnerQ: r.match_q_ideal_partner_q ?? undefined,
+    matchQConvStyleSelfChoices: r.match_q_conv_style_self_choices ?? undefined,
+    matchQConvWithStrangersChoices: r.match_q_conv_with_strangers_choices ?? undefined,
+    matchQConvAttractionChoices: r.match_q_conv_attraction_choices ?? undefined,
+    matchQIdealImportantChoices: r.match_q_ideal_important_choices ?? undefined,
+    matchQIdealSoulmateMustChoices: r.match_q_ideal_soulmate_must_choices ?? undefined,
+    matchQIdealRelationshipChoices: r.match_q_ideal_relationship_choices ?? undefined,
+    matchQIdealPartnerQChoices: r.match_q_ideal_partner_q_choices ?? undefined,
+    kakaoOpenchatHelpImageUrls: r.kakao_openchat_help_image_urls ?? undefined,
   };
 }
 
@@ -317,6 +333,14 @@ export async function createCohort(
     match_q_ideal_soulmate_must: input.matchQIdealSoulmateMust ?? null,
     match_q_ideal_relationship: input.matchQIdealRelationship ?? null,
     match_q_ideal_partner_q: input.matchQIdealPartnerQ ?? null,
+    match_q_conv_style_self_choices: input.matchQConvStyleSelfChoices ?? null,
+    match_q_conv_with_strangers_choices: input.matchQConvWithStrangersChoices ?? null,
+    match_q_conv_attraction_choices: input.matchQConvAttractionChoices ?? null,
+    match_q_ideal_important_choices: input.matchQIdealImportantChoices ?? null,
+    match_q_ideal_soulmate_must_choices: input.matchQIdealSoulmateMustChoices ?? null,
+    match_q_ideal_relationship_choices: input.matchQIdealRelationshipChoices ?? null,
+    match_q_ideal_partner_q_choices: input.matchQIdealPartnerQChoices ?? null,
+    kakao_openchat_help_image_urls: input.kakaoOpenchatHelpImageUrls ?? null,
   };
 
   const { data, error } = await getSupabaseAdmin()
@@ -367,6 +391,14 @@ export async function updateCohort(
   if (patch.matchQIdealSoulmateMust !== undefined) row.match_q_ideal_soulmate_must = patch.matchQIdealSoulmateMust ?? null;
   if (patch.matchQIdealRelationship !== undefined) row.match_q_ideal_relationship = patch.matchQIdealRelationship ?? null;
   if (patch.matchQIdealPartnerQ !== undefined) row.match_q_ideal_partner_q = patch.matchQIdealPartnerQ ?? null;
+  if (patch.matchQConvStyleSelfChoices !== undefined) row.match_q_conv_style_self_choices = patch.matchQConvStyleSelfChoices ?? null;
+  if (patch.matchQConvWithStrangersChoices !== undefined) row.match_q_conv_with_strangers_choices = patch.matchQConvWithStrangersChoices ?? null;
+  if (patch.matchQConvAttractionChoices !== undefined) row.match_q_conv_attraction_choices = patch.matchQConvAttractionChoices ?? null;
+  if (patch.matchQIdealImportantChoices !== undefined) row.match_q_ideal_important_choices = patch.matchQIdealImportantChoices ?? null;
+  if (patch.matchQIdealSoulmateMustChoices !== undefined) row.match_q_ideal_soulmate_must_choices = patch.matchQIdealSoulmateMustChoices ?? null;
+  if (patch.matchQIdealRelationshipChoices !== undefined) row.match_q_ideal_relationship_choices = patch.matchQIdealRelationshipChoices ?? null;
+  if (patch.matchQIdealPartnerQChoices !== undefined) row.match_q_ideal_partner_q_choices = patch.matchQIdealPartnerQChoices ?? null;
+  if (patch.kakaoOpenchatHelpImageUrls !== undefined) row.kakao_openchat_help_image_urls = patch.kakaoOpenchatHelpImageUrls ?? null;
 
   const { data, error } = await getSupabaseAdmin()
     .from('cohorts')

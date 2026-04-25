@@ -29,6 +29,15 @@ function datetimeLocalToISO(local: string): string {
   return new Date(local).toISOString();
 }
 
+/** 개행 텍스트 → trim된 비어있지 않은 라인 배열. 전체 비어있으면 undefined. */
+function parseLines(s: string): string[] | undefined {
+  const lines = s
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  return lines.length > 0 ? lines : undefined;
+}
+
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "8px 10px",
@@ -125,6 +134,31 @@ export default function CohortForm({ mode, cohort }: Props) {
   const [mqIdealSoulmateMust, setMqIdealSoulmateMust] = useState(cohort?.matchQIdealSoulmateMust ?? "");
   const [mqIdealRelationship, setMqIdealRelationship] = useState(cohort?.matchQIdealRelationship ?? "");
   const [mqIdealPartnerQ, setMqIdealPartnerQ]         = useState(cohort?.matchQIdealPartnerQ ?? "");
+  // Phase 16: 객관식 선택지 (한 줄에 하나; 비우면 자유서술)
+  const [mqConvStyleSelfChoicesText, setMqConvStyleSelfChoicesText] = useState(
+    (cohort?.matchQConvStyleSelfChoices ?? []).join("\n"),
+  );
+  const [mqConvWithStrangersChoicesText, setMqConvWithStrangersChoicesText] = useState(
+    (cohort?.matchQConvWithStrangersChoices ?? []).join("\n"),
+  );
+  const [mqConvAttractionChoicesText, setMqConvAttractionChoicesText] = useState(
+    (cohort?.matchQConvAttractionChoices ?? []).join("\n"),
+  );
+  const [mqIdealImportantChoicesText, setMqIdealImportantChoicesText] = useState(
+    (cohort?.matchQIdealImportantChoices ?? []).join("\n"),
+  );
+  const [mqIdealSoulmateMustChoicesText, setMqIdealSoulmateMustChoicesText] = useState(
+    (cohort?.matchQIdealSoulmateMustChoices ?? []).join("\n"),
+  );
+  const [mqIdealRelationshipChoicesText, setMqIdealRelationshipChoicesText] = useState(
+    (cohort?.matchQIdealRelationshipChoices ?? []).join("\n"),
+  );
+  const [mqIdealPartnerQChoicesText, setMqIdealPartnerQChoicesText] = useState(
+    (cohort?.matchQIdealPartnerQChoices ?? []).join("\n"),
+  );
+  const [openchatHelpImagesText, setOpenchatHelpImagesText] = useState(
+    (cohort?.kakaoOpenchatHelpImageUrls ?? []).join("\n"),
+  );
 
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -190,6 +224,15 @@ export default function CohortForm({ mode, cohort }: Props) {
       matchQIdealSoulmateMust: mqIdealSoulmateMust || undefined,
       matchQIdealRelationship: mqIdealRelationship || undefined,
       matchQIdealPartnerQ: mqIdealPartnerQ || undefined,
+      // Phase 16: 객관식 선택지 + 오픈채팅 설명 이미지
+      matchQConvStyleSelfChoices: parseLines(mqConvStyleSelfChoicesText),
+      matchQConvWithStrangersChoices: parseLines(mqConvWithStrangersChoicesText),
+      matchQConvAttractionChoices: parseLines(mqConvAttractionChoicesText),
+      matchQIdealImportantChoices: parseLines(mqIdealImportantChoicesText),
+      matchQIdealSoulmateMustChoices: parseLines(mqIdealSoulmateMustChoicesText),
+      matchQIdealRelationshipChoices: parseLines(mqIdealRelationshipChoicesText),
+      matchQIdealPartnerQChoices: parseLines(mqIdealPartnerQChoicesText),
+      kakaoOpenchatHelpImageUrls: parseLines(openchatHelpImagesText),
     };
 
     try {
@@ -563,81 +606,87 @@ export default function CohortForm({ mode, cohort }: Props) {
         </div>
       </div>
 
-      {/* 매칭 폼 본 질문 편집 — Phase 12 Option A (대화성향 3 + 이상형·가치관 4) */}
+      {/* 매칭 폼 본 질문 편집 — Phase 12 Option A + Phase 16 객관식 */}
       <div style={sectionStyle}>
         <div style={sectionTitleStyle}>매칭 폼 본 질문 (7개)</div>
         <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: -4, marginBottom: 14 }}>
-          비우면 기본 Tally 문구로 표시됩니다. 기수별로 질문을 다르게 쓸 때만 채우세요.
+          비우면 기본 Tally 문구로 표시됩니다. 각 질문 아래 "객관식 선택지"에 한 줄에 하나씩
+          입력하면 매칭폼이 자동으로 라디오로 바뀝니다.
         </p>
 
-        <div style={{ ...fieldStyle, marginTop: 4 }}>
-          <label style={labelStyle}>[대화성향 1] 나는 대화할 때…</label>
+        <QuestionEditor
+          label="[대화성향 1] 나는 대화할 때…"
+          placeholder="저는 대화할 때 이런 사람 같아요!"
+          prompt={mqConvStyleSelf}
+          onPromptChange={setMqConvStyleSelf}
+          choicesText={mqConvStyleSelfChoicesText}
+          onChoicesChange={setMqConvStyleSelfChoicesText}
+        />
+        <QuestionEditor
+          label="[대화성향 2] 낯선이와 함께할 때"
+          placeholder="낯선이와 함께할 때 저는 이래요!"
+          prompt={mqConvWithStrangers}
+          onPromptChange={setMqConvWithStrangers}
+          choicesText={mqConvWithStrangersChoicesText}
+          onChoicesChange={setMqConvWithStrangersChoicesText}
+        />
+        <QuestionEditor
+          label="[대화성향 3] 매력 포인트"
+          placeholder="남들에게 칭찬받는 대화할 때의 나의 매력 포인트?"
+          prompt={mqConvAttraction}
+          onPromptChange={setMqConvAttraction}
+          choicesText={mqConvAttractionChoicesText}
+          onChoicesChange={setMqConvAttractionChoicesText}
+        />
+        <QuestionEditor
+          label="[가치관 1] 사람 볼 때 중요한 것"
+          placeholder="사람을 볼 때 당신이 가장 중요하게 보는 것은?"
+          prompt={mqIdealImportant}
+          onPromptChange={setMqIdealImportant}
+          choicesText={mqIdealImportantChoicesText}
+          onChoicesChange={setMqIdealImportantChoicesText}
+        />
+        <QuestionEditor
+          label="[가치관 2] 소울메이트라면"
+          placeholder="소울메이트라면 이건 맞아야지!"
+          prompt={mqIdealSoulmateMust}
+          onPromptChange={setMqIdealSoulmateMust}
+          choicesText={mqIdealSoulmateMustChoicesText}
+          onChoicesChange={setMqIdealSoulmateMustChoicesText}
+        />
+        <QuestionEditor
+          label="[가치관 3] 기대하는 관계"
+          placeholder="나의 전화 메이트와 이런 관계를 기대하고 있어요!"
+          prompt={mqIdealRelationship}
+          onPromptChange={setMqIdealRelationship}
+          choicesText={mqIdealRelationshipChoicesText}
+          onChoicesChange={setMqIdealRelationshipChoicesText}
+        />
+        <QuestionEditor
+          label="[가치관 4] 파트너에게 하고 싶은 질문"
+          placeholder="이번 커넥팅 기간 동안 내 파트너에게 꼭 하고 싶은 질문 한가지?"
+          prompt={mqIdealPartnerQ}
+          onPromptChange={setMqIdealPartnerQ}
+          choicesText={mqIdealPartnerQChoicesText}
+          onChoicesChange={setMqIdealPartnerQChoicesText}
+        />
+      </div>
+
+      {/* 오픈채팅 설명 이미지 — Phase 16 */}
+      <div style={sectionStyle}>
+        <div style={sectionTitleStyle}>오픈채팅 설명 이미지 (남자 매칭폼 7번)</div>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: -4, marginBottom: 14 }}>
+          매칭폼 마지막 섹션(남자 전용)에 호스트가 보여줄 카카오톡 1:1 오픈채팅방 만드는 방법
+          캡처를 한 줄에 하나씩 URL로 입력하세요. (Supabase Storage 또는 외부 호스팅 URL)
+        </p>
+        <div style={fieldStyle}>
+          <label style={labelStyle}>이미지 URL 목록</label>
           <textarea
-            value={mqConvStyleSelf}
-            onChange={(e) => setMqConvStyleSelf(e.target.value)}
-            rows={2}
-            placeholder="저는 대화할 때 이런 사람 같아요!"
-            style={{ ...inputStyle, resize: "vertical" }}
-          />
-        </div>
-        <div style={{ ...fieldStyle, marginTop: 12 }}>
-          <label style={labelStyle}>[대화성향 2] 낯선이와 함께할 때</label>
-          <textarea
-            value={mqConvWithStrangers}
-            onChange={(e) => setMqConvWithStrangers(e.target.value)}
-            rows={2}
-            placeholder="낯선이와 함께할 때 저는 이래요!"
-            style={{ ...inputStyle, resize: "vertical" }}
-          />
-        </div>
-        <div style={{ ...fieldStyle, marginTop: 12 }}>
-          <label style={labelStyle}>[대화성향 3] 매력 포인트</label>
-          <textarea
-            value={mqConvAttraction}
-            onChange={(e) => setMqConvAttraction(e.target.value)}
-            rows={2}
-            placeholder="남들에게 칭찬받는 대화할 때의 나의 매력 포인트?"
-            style={{ ...inputStyle, resize: "vertical" }}
-          />
-        </div>
-        <div style={{ ...fieldStyle, marginTop: 12 }}>
-          <label style={labelStyle}>[가치관 1] 사람 볼 때 중요한 것</label>
-          <textarea
-            value={mqIdealImportant}
-            onChange={(e) => setMqIdealImportant(e.target.value)}
-            rows={2}
-            placeholder="사람을 볼 때 당신이 가장 중요하게 보는 것은?"
-            style={{ ...inputStyle, resize: "vertical" }}
-          />
-        </div>
-        <div style={{ ...fieldStyle, marginTop: 12 }}>
-          <label style={labelStyle}>[가치관 2] 소울메이트라면</label>
-          <textarea
-            value={mqIdealSoulmateMust}
-            onChange={(e) => setMqIdealSoulmateMust(e.target.value)}
-            rows={2}
-            placeholder="소울메이트라면 이건 맞아야지!"
-            style={{ ...inputStyle, resize: "vertical" }}
-          />
-        </div>
-        <div style={{ ...fieldStyle, marginTop: 12 }}>
-          <label style={labelStyle}>[가치관 3] 기대하는 관계</label>
-          <textarea
-            value={mqIdealRelationship}
-            onChange={(e) => setMqIdealRelationship(e.target.value)}
-            rows={2}
-            placeholder="나의 전화 메이트와 이런 관계를 기대하고 있어요!"
-            style={{ ...inputStyle, resize: "vertical" }}
-          />
-        </div>
-        <div style={{ ...fieldStyle, marginTop: 12 }}>
-          <label style={labelStyle}>[가치관 4] 파트너에게 하고 싶은 질문</label>
-          <textarea
-            value={mqIdealPartnerQ}
-            onChange={(e) => setMqIdealPartnerQ(e.target.value)}
-            rows={2}
-            placeholder="이번 커넥팅 기간 동안 내 파트너에게 꼭 하고 싶은 질문 한가지?"
-            style={{ ...inputStyle, resize: "vertical" }}
+            value={openchatHelpImagesText}
+            onChange={(e) => setOpenchatHelpImagesText(e.target.value)}
+            rows={4}
+            placeholder={"https://...\nhttps://..."}
+            style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace", fontSize: 12 }}
           />
         </div>
       </div>
@@ -727,5 +776,62 @@ export default function CohortForm({ mode, cohort }: Props) {
         </a>
       </div>
     </form>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QuestionEditor — prompt textarea + 객관식 선택지 textarea 짝
+// ─────────────────────────────────────────────────────────────────────────────
+function QuestionEditor({
+  label,
+  placeholder,
+  prompt,
+  onPromptChange,
+  choicesText,
+  onChoicesChange,
+}: {
+  label: string;
+  placeholder: string;
+  prompt: string;
+  onPromptChange: (v: string) => void;
+  choicesText: string;
+  onChoicesChange: (v: string) => void;
+}) {
+  const choiceCount = choicesText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).length;
+  const isRadioMode = choiceCount > 0;
+
+  return (
+    <div
+      style={{
+        marginTop: 14,
+        padding: "12px 14px",
+        background: "var(--bg)",
+        border: "1px solid var(--border)",
+        borderRadius: 8,
+      }}
+    >
+      <div style={fieldStyle}>
+        <label style={labelStyle}>{label}</label>
+        <textarea
+          value={prompt}
+          onChange={(e) => onPromptChange(e.target.value)}
+          rows={2}
+          placeholder={placeholder}
+          style={{ ...inputStyle, resize: "vertical" }}
+        />
+      </div>
+      <div style={{ ...fieldStyle, marginTop: 10 }}>
+        <label style={{ ...labelStyle, color: isRadioMode ? "var(--accent)" : "var(--text-muted)" }}>
+          객관식 선택지 {isRadioMode ? `· ${choiceCount}개 (라디오)` : "· 비어있음 (텍스트형)"}
+        </label>
+        <textarea
+          value={choicesText}
+          onChange={(e) => onChoicesChange(e.target.value)}
+          rows={3}
+          placeholder={"한 줄에 하나씩\n예: 조용한 편이에요\n예: 먼저 말 걸어요"}
+          style={{ ...inputStyle, resize: "vertical", fontSize: 13 }}
+        />
+      </div>
+    </div>
   );
 }

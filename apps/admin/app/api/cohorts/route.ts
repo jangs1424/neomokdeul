@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createCohort, type CohortStatus } from '@neomokdeul/db';
 
+function arrOrUndef(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const cleaned = v.map((x) => String(x).trim()).filter(Boolean);
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -51,6 +57,14 @@ export async function POST(req: Request) {
       matchQIdealSoulmateMust: body.matchQIdealSoulmateMust || undefined,
       matchQIdealRelationship: body.matchQIdealRelationship || undefined,
       matchQIdealPartnerQ: body.matchQIdealPartnerQ || undefined,
+      matchQConvStyleSelfChoices: arrOrUndef(body.matchQConvStyleSelfChoices),
+      matchQConvWithStrangersChoices: arrOrUndef(body.matchQConvWithStrangersChoices),
+      matchQConvAttractionChoices: arrOrUndef(body.matchQConvAttractionChoices),
+      matchQIdealImportantChoices: arrOrUndef(body.matchQIdealImportantChoices),
+      matchQIdealSoulmateMustChoices: arrOrUndef(body.matchQIdealSoulmateMustChoices),
+      matchQIdealRelationshipChoices: arrOrUndef(body.matchQIdealRelationshipChoices),
+      matchQIdealPartnerQChoices: arrOrUndef(body.matchQIdealPartnerQChoices),
+      kakaoOpenchatHelpImageUrls: arrOrUndef(body.kakaoOpenchatHelpImageUrls),
     });
     return NextResponse.json({ ok: true, cohort }, { status: 201 });
   } catch (err) {

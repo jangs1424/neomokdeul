@@ -6,11 +6,10 @@ import type {
   Cohort,
   MatchResponse,
 } from '@neomokdeul/db';
-import { SlotGrid, enumerateDates } from './SlotGrid';
+import { SlotGrid } from './SlotGrid';
 import { ReadOnlyView } from './ReadOnlyView';
 
 // Local aliases — kept in sync with @neomokdeul/db/schema.ts (not re-exported from index.ts).
-type MatchGenderPreference = NonNullable<MatchResponse['matchGender']>;
 type PhoneType = NonNullable<MatchResponse['phoneType']>;
 
 interface Props {
@@ -30,8 +29,6 @@ const DEFAULT_DAY_PROMPTS = {
 };
 
 type FormState = {
-  matchGender: MatchGenderPreference | '';
-  muntoNickname: string;
   nickname: string;
   phoneType: PhoneType | '';
   convStyleSelf: string;
@@ -47,8 +44,8 @@ type FormState = {
   day4Together: string;
   day5SecretMission: string;
   availableSlots: string[];
-  gatheringDates: string[];
   privacyAgreed: boolean;
+  partnerInfoAgreed: boolean;
   marketingAgreed: boolean;
   kakaoOpenchatUrl: string;
 };
@@ -74,8 +71,6 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
   const hasExisting = !!existingResponse;
 
   const initial: FormState = {
-    matchGender: existingResponse?.matchGender ?? '',
-    muntoNickname: existingResponse?.muntoNickname ?? '',
     nickname: existingResponse?.nickname ?? '',
     phoneType: existingResponse?.phoneType ?? '',
     convStyleSelf: existingResponse?.convStyleSelf ?? '',
@@ -91,8 +86,8 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
     day4Together: existingResponse?.day4Together ?? '',
     day5SecretMission: existingResponse?.day5SecretMission ?? '',
     availableSlots: existingResponse?.availableSlots ?? [],
-    gatheringDates: existingResponse?.gatheringDates ?? [],
-    privacyAgreed: true, // already agreed at application time; confirm checkbox default on
+    privacyAgreed: hasExisting,
+    partnerInfoAgreed: hasExisting,
     marketingAgreed: existingResponse?.marketingAgreed ?? false,
     kakaoOpenchatUrl: existingResponse?.kakaoOpenchatUrl ?? '',
   };
@@ -104,10 +99,6 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
   const [viewMode, setViewMode] = useState<'edit' | 'view'>('edit');
 
   const deadlineBadge = useMemo(() => computeDeadlineBadge(deadline), [deadline]);
-  const programDates = useMemo(
-    () => enumerateDates(cohort.programStartDate, cohort.programEndDate),
-    [cohort.programStartDate, cohort.programEndDate],
-  );
 
   const dayPrompts = {
     day1: cohort.matchDay1Prompt ?? DEFAULT_DAY_PROMPTS.day1,
@@ -127,6 +118,19 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
     idealRelationship: cohort.matchQIdealRelationship ?? "나의 전화 메이트와 이런 관계를 기대하고 있어요!",
     idealPartnerQ: cohort.matchQIdealPartnerQ ?? "이번 커넥팅 기간 동안 내 파트너에게 꼭 하고 싶은 질문 한가지?",
   };
+
+  // Phase 16 — 객관식 선택지 (있으면 라디오)
+  const mainChoices: Record<keyof typeof mainQuestions, string[] | undefined> = {
+    convStyleSelf: cohort.matchQConvStyleSelfChoices,
+    convWithStrangers: cohort.matchQConvWithStrangersChoices,
+    convAttraction: cohort.matchQConvAttractionChoices,
+    idealImportant: cohort.matchQIdealImportantChoices,
+    idealSoulmateMust: cohort.matchQIdealSoulmateMustChoices,
+    idealRelationship: cohort.matchQIdealRelationshipChoices,
+    idealPartnerQ: cohort.matchQIdealPartnerQChoices,
+  };
+
+  const openchatHelpImages = cohort.kakaoOpenchatHelpImageUrls ?? [];
 
   // Read-only render conditions
   if (closed && existingResponse) {
@@ -156,32 +160,14 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
     setForm((prev) => ({ ...prev, [k]: v }));
   };
 
-  const toggleGatheringDate = (d: string) => {
-    setForm((prev) => ({
-      ...prev,
-      gatheringDates: prev.gatheringDates.includes(d)
-        ? prev.gatheringDates.filter((x) => x !== d)
-        : [...prev.gatheringDates, d],
-    }));
-  };
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
     // Client-side validation
-    if (!form.matchGender) {
-      setError('매칭 희망 성별을 선택해 주세요.');
-      return;
-    }
     const nickname = form.nickname.trim();
     if (nickname.length < 2 || nickname.length > 12) {
-      setError('새로운 닉네임은 2~12자로 입력해 주세요.');
-      return;
-    }
-    const munto = form.muntoNickname.trim();
-    if (munto && munto === nickname) {
-      setError('새로운 닉네임은 문토 닉네임과 달라야 해요.');
+      setError('비밀 닉네임은 2~12자로 입력해 주세요.');
       return;
     }
     if (!form.phoneType) {
@@ -215,6 +201,10 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
       setError('개인정보 수집·이용 동의가 필요해요.');
       return;
     }
+    if (!form.partnerInfoAgreed) {
+      setError('파트너에게 정보 공개 동의가 필요해요.');
+      return;
+    }
 
     if (isMale) {
       const url = form.kakaoOpenchatUrl.trim();
@@ -234,8 +224,7 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          matchGender: form.matchGender,
-          muntoNickname: munto || undefined,
+          matchGender: 'opposite', // 폼에서 제외 — 항상 이성 매칭
           nickname,
           phoneType: form.phoneType,
           convStyleSelf: form.convStyleSelf.trim(),
@@ -251,7 +240,7 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
           day4Together: form.day4Together.trim() || undefined,
           day5SecretMission: form.day5SecretMission.trim() || undefined,
           availableSlots: form.availableSlots,
-          gatheringDates: form.gatheringDates,
+          gatheringDates: [],
           marketingAgreed: form.marketingAgreed,
           kakaoOpenchatUrl: isMale ? form.kakaoOpenchatUrl.trim() : undefined,
         }),
@@ -299,8 +288,7 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
           </div>
           <h1
             style={{
-              fontFamily: 'var(--font-serif)',
-              fontSize: 22,
+                            fontSize: 22,
               marginBottom: 10,
               color: 'var(--ink)',
             }}
@@ -339,8 +327,7 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
         </p>
         <h1
           style={{
-            fontFamily: 'var(--font-serif)',
-            fontSize: 24,
+                        fontSize: 24,
             color: 'var(--ink)',
             lineHeight: 1.35,
             marginBottom: 8,
@@ -360,7 +347,7 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
               padding: '4px 10px',
               fontSize: 12,
               color: 'var(--forest-deep)',
-              background: 'rgba(90,122,92,0.1)',
+              background: 'rgba(31,138,92,0.1)',
               borderRadius: 999,
             }}
           >
@@ -403,29 +390,12 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
       <Section title="1. 기본 정보">
         <ReadonlyRow label="이름" value={application.name} />
         <ReadonlyRow label="성별" value={application.gender === 'male' ? '남성' : '여성'} />
-        <Field label="매칭 희망 성별" required>
-          <RadioGroup
-            name="matchGender"
-            value={form.matchGender}
-            onChange={(v) => update('matchGender', v as MatchGenderPreference)}
-            options={[
-              { value: 'opposite', label: '이성' },
-              { value: 'same', label: '동성' },
-              { value: 'any', label: '상관없음' },
-            ]}
-          />
-        </Field>
         <ReadonlyRow label="나이 (년생)" value={`${application.birthYear}`} />
-        <Field label="문토 닉네임" hint="문토에서 사용하는 닉네임 (선택)">
-          <input
-            type="text"
-            value={form.muntoNickname}
-            onChange={(e) => update('muntoNickname', e.target.value)}
-            maxLength={40}
-            style={inputStyle}
-          />
-        </Field>
-        <Field label="새로운 닉네임" required hint="이번 회차에서 쓸 이름 (2~12자)">
+        <Field
+          label="7일간 사용할 비밀 닉네임"
+          required
+          hint="이번 회차에서 쓸 새로운 이름 (2~12자) — 본명·SNS 아이디 노출 금지"
+        >
           <input
             type="text"
             value={form.nickname}
@@ -452,74 +422,60 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
       </Section>
 
       {/* Page 2 — 대화 성향 */}
-      <Section title="2. 대화 성향" subtitle="자유롭게 작성해 주세요.">
-        <Field label={mainQuestions.convStyleSelf} required>
-          <textarea
-            value={form.convStyleSelf}
-            onChange={(e) => update('convStyleSelf', e.target.value)}
-            rows={3}
-            required
-            style={textareaStyle}
-          />
-        </Field>
-        <Field label={mainQuestions.convWithStrangers} required>
-          <textarea
-            value={form.convWithStrangers}
-            onChange={(e) => update('convWithStrangers', e.target.value)}
-            rows={3}
-            required
-            style={textareaStyle}
-          />
-        </Field>
-        <Field label={mainQuestions.convAttraction} required>
-          <textarea
-            value={form.convAttraction}
-            onChange={(e) => update('convAttraction', e.target.value)}
-            rows={3}
-            required
-            style={textareaStyle}
-          />
-        </Field>
+      <Section title="2. 대화 성향" subtitle="가장 가까운 답변을 골라 주세요.">
+        <MainQuestion
+          label={mainQuestions.convStyleSelf}
+          value={form.convStyleSelf}
+          onChange={(v) => update('convStyleSelf', v)}
+          choices={mainChoices.convStyleSelf}
+          name="convStyleSelf"
+        />
+        <MainQuestion
+          label={mainQuestions.convWithStrangers}
+          value={form.convWithStrangers}
+          onChange={(v) => update('convWithStrangers', v)}
+          choices={mainChoices.convWithStrangers}
+          name="convWithStrangers"
+        />
+        <MainQuestion
+          label={mainQuestions.convAttraction}
+          value={form.convAttraction}
+          onChange={(v) => update('convAttraction', v)}
+          choices={mainChoices.convAttraction}
+          name="convAttraction"
+        />
       </Section>
 
       {/* Page 3 — 이상형 */}
       <Section title="3. 이상형·가치관">
-        <Field label={mainQuestions.idealImportant} required>
-          <textarea
-            value={form.idealImportant}
-            onChange={(e) => update('idealImportant', e.target.value)}
-            rows={3}
-            required
-            style={textareaStyle}
-          />
-        </Field>
-        <Field label={mainQuestions.idealSoulmateMust} required>
-          <textarea
-            value={form.idealSoulmateMust}
-            onChange={(e) => update('idealSoulmateMust', e.target.value)}
-            rows={3}
-            required
-            style={textareaStyle}
-          />
-        </Field>
-        <Field label={mainQuestions.idealRelationship} required>
-          <textarea
-            value={form.idealRelationship}
-            onChange={(e) => update('idealRelationship', e.target.value)}
-            rows={3}
-            required
-            style={textareaStyle}
-          />
-        </Field>
-        <Field label={mainQuestions.idealPartnerQ} required>
-          <textarea
-            value={form.idealPartnerQ}
-            onChange={(e) => update('idealPartnerQ', e.target.value)}
-            rows={3}
-            required
-            style={textareaStyle}
-          />
-        </Field>
+        <MainQuestion
+          label={mainQuestions.idealImportant}
+          value={form.idealImportant}
+          onChange={(v) => update('idealImportant', v)}
+          choices={mainChoices.idealImportant}
+          name="idealImportant"
+        />
+        <MainQuestion
+          label={mainQuestions.idealSoulmateMust}
+          value={form.idealSoulmateMust}
+          onChange={(v) => update('idealSoulmateMust', v)}
+          choices={mainChoices.idealSoulmateMust}
+          name="idealSoulmateMust"
+        />
+        <MainQuestion
+          label={mainQuestions.idealRelationship}
+          value={form.idealRelationship}
+          onChange={(v) => update('idealRelationship', v)}
+          choices={mainChoices.idealRelationship}
+          name="idealRelationship"
+        />
+        <MainQuestion
+          label={mainQuestions.idealPartnerQ}
+          value={form.idealPartnerQ}
+          onChange={(v) => update('idealPartnerQ', v)}
+          choices={mainChoices.idealPartnerQ}
+          name="idealPartnerQ"
+        />
       </Section>
 
       {/* Page 4 — Day별 */}
@@ -587,88 +543,110 @@ export function MatchForm({ application, cohort, existingResponse, closed, deadl
           </p>
         </Field>
 
-        <Field label="오프라인 개더링 참여 희망 날짜" hint="(선택) 참여 가능한 날짜에 체크">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {programDates.map((d) => {
-              const checked = form.gatheringDates.includes(d);
-              return (
-                <label
-                  key={d}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '10px 12px',
-                    border: `1px solid ${checked ? 'var(--forest)' : 'var(--border)'}`,
-                    borderRadius: 10,
-                    background: checked ? 'rgba(90,122,92,0.08)' : 'var(--surface)',
-                    cursor: 'pointer',
-                    fontSize: 14,
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleGatheringDate(d)}
-                    style={{ accentColor: 'var(--forest)' }}
-                  />
-                  {d}
-                </label>
-              );
-            })}
-          </div>
-        </Field>
-
         <ReadonlyRow label="연락처" value={application.phone} />
       </Section>
 
       {/* Page 6 — 동의 */}
-      <Section title="6. 동의">
-        <label
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            fontSize: 14,
-            marginBottom: 12,
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={form.privacyAgreed}
-            onChange={(e) => update('privacyAgreed', e.target.checked)}
-            required
-            style={{ accentColor: 'var(--forest)' }}
-          />
-          <span>
-            개인정보 수집·이용에 동의합니다. <span style={{ color: 'var(--accent)' }}>*</span>
-          </span>
-        </label>
-        <label
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            fontSize: 14,
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={form.marketingAgreed}
-            onChange={(e) => update('marketingAgreed', e.target.checked)}
-            style={{ accentColor: 'var(--forest)' }}
-          />
-          <span>마케팅 활용에 동의합니다. (선택)</span>
-        </label>
+      <Section
+        title="6. 동의"
+        subtitle="아래 내용을 확인하고 체크해 주세요. 마케팅은 선택입니다."
+      >
+        <ConsentBlock
+          required
+          checked={form.privacyAgreed}
+          onChange={(c) => update('privacyAgreed', c)}
+          title="개인정보 수집·이용 동의 (필수)"
+          body={
+            <>
+              <p>· 수집 항목: 이름, 연락처, 생년, 성별, 직업, 거주지, MBTI, 음성·사진 자기소개, 매칭 폼 답변(대화 성향·이상형·소울푸드·취미·장소·미션 등), 통화 가능 시간</p>
+              <p>· 이용 목적: 매칭 알고리즘 입력, 파트너 매칭, 프로그램 운영(SMS 안내), 통계·서비스 개선</p>
+              <p>· 보유 기간: 프로그램 종료 후 6개월 (분쟁 대응 목적). 이후 즉시 파기. 통계용 비식별 데이터는 별도 보관 가능</p>
+              <p>· 동의를 거부할 권리가 있으나, 거부 시 매칭 진행이 불가합니다.</p>
+            </>
+          }
+        />
+
+        <ConsentBlock
+          required
+          checked={form.partnerInfoAgreed}
+          onChange={(c) => update('partnerInfoAgreed', c)}
+          title="파트너에게 정보 공개 동의 (필수)"
+          body={
+            <>
+              <p>· 공개 항목 (매칭된 상대방에게만 노출): 비밀 닉네임, 출생연도, 성별, 거주지, MBTI, 음성·사진 자기소개, 매칭 폼 답변, 카카오톡 1:1 오픈채팅방 링크(남자 한정)</p>
+              <p>· 본명·전화번호·실제 SNS 계정은 공개되지 않습니다.</p>
+              <p>· 프로그램 종료 후 양측 동의 시에만 연락처 교환이 진행됩니다.</p>
+            </>
+          }
+        />
+
+        <ConsentBlock
+          checked={form.marketingAgreed}
+          onChange={(c) => update('marketingAgreed', c)}
+          title="마케팅·후기 활용 동의 (선택)"
+          body={
+            <>
+              <p>· 프로그램 종료 후 후기 요청 SMS 발송 및 SNS·블로그에 익명 후기 활용에 동의합니다. (개인 식별 정보는 사용되지 않습니다)</p>
+              <p>· 다음 기수 모집 안내 등 Socially의 프로그램 안내 문자를 수신하는 데 동의합니다.</p>
+              <p>· 동의를 거부해도 본 매칭 진행에는 영향이 없습니다.</p>
+            </>
+          }
+        />
       </Section>
 
       {/* Page 7 — 남성 전용 */}
       {isMale && (
-        <Section title="7. 1:1 오픈채팅방 링크">
+        <Section
+          title="7. 1:1 오픈채팅방 링크"
+          subtitle="여자 파트너가 먼저 들어올 수 있도록 카카오톡 1:1 오픈채팅방을 만들어 링크를 입력해 주세요."
+        >
+          {openchatHelpImages.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                marginBottom: 18,
+                padding: 14,
+                background: 'var(--bg-soft, #f7faf8)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 12,
+                  color: 'var(--sub)',
+                  lineHeight: 1.6,
+                  fontWeight: 600,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                ↓ 만드는 방법 (이미지 참고)
+              </p>
+              {openchatHelpImages.map((url, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={i}
+                  src={url}
+                  alt={`오픈채팅 만들기 ${i + 1}단계`}
+                  style={{
+                    width: '100%',
+                    height: 'auto',
+                    borderRadius: 10,
+                    border: '1px solid var(--border)',
+                    background: '#fff',
+                  }}
+                  loading="lazy"
+                />
+              ))}
+            </div>
+          )}
           <Field
             label="카카오톡 1:1 오픈채팅 링크"
             required
-            hint="여자 파트너가 먼저 들어올 수 있도록 1:1 오픈채팅방을 생성해서 붙여 주세요."
+            hint="https://open.kakao.com/ 으로 시작해야 해요."
           >
             <input
               type="url"
@@ -756,8 +734,7 @@ function Section({
     >
       <h2
         style={{
-          fontFamily: 'var(--font-serif)',
-          fontSize: 20,
+                    fontSize: 20,
           color: 'var(--ink)',
           marginBottom: subtitle ? 4 : 14,
         }}
@@ -872,7 +849,7 @@ function RadioGroup({
               padding: '10px 12px',
               border: `1px solid ${checked ? 'var(--forest)' : 'var(--border)'}`,
               borderRadius: 10,
-              background: checked ? 'rgba(90,122,92,0.08)' : 'var(--surface)',
+              background: checked ? 'rgba(31,138,92,0.08)' : 'var(--surface)',
               cursor: 'pointer',
               fontSize: 14,
               color: checked ? 'var(--forest-deep)' : 'var(--ink)',
@@ -909,6 +886,151 @@ function ToggleBtn({ active, children }: { active?: boolean; children: React.Rea
     >
       {children}
     </span>
+  );
+}
+
+/**
+ * ConsentBlock — 약관 본문 + 동의 체크박스.
+ */
+function ConsentBlock({
+  required,
+  checked,
+  onChange,
+  title,
+  body,
+}: {
+  required?: boolean;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  title: string;
+  body: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        marginBottom: 14,
+        background: 'var(--surface)',
+        border: `1px solid ${checked ? 'var(--forest)' : 'var(--border)'}`,
+        borderRadius: 12,
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          padding: '12px 14px 10px',
+          fontSize: 13,
+          fontWeight: 700,
+          color: 'var(--ink)',
+          letterSpacing: '-0.01em',
+        }}
+      >
+        {title}
+        {required && <span style={{ color: 'var(--accent)', marginLeft: 4 }}>*</span>}
+      </div>
+      <div
+        style={{
+          padding: '0 14px 10px',
+          fontSize: 12.5,
+          color: 'var(--sub)',
+          lineHeight: 1.7,
+          maxHeight: 160,
+          overflowY: 'auto',
+        }}
+      >
+        {body}
+      </div>
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '10px 14px',
+          background: checked ? 'rgba(31,138,92,0.06)' : 'rgba(0,0,0,0.02)',
+          borderTop: '1px solid var(--border)',
+          fontSize: 13,
+          fontWeight: 600,
+          color: checked ? 'var(--forest-deep)' : 'var(--ink)',
+          cursor: 'pointer',
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+          required={required}
+          style={{ accentColor: 'var(--forest)' }}
+        />
+        위 내용을 확인하고 동의합니다
+      </label>
+    </div>
+  );
+}
+
+/**
+ * MainQuestion — textarea OR vertical radio list 분기.
+ * choices가 비어있으면 textarea, 1개 이상이면 라디오.
+ */
+function MainQuestion({
+  label,
+  value,
+  onChange,
+  choices,
+  name,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  choices: string[] | undefined;
+  name: string;
+}) {
+  const isRadio = Array.isArray(choices) && choices.length > 0;
+  return (
+    <Field label={label} required>
+      {isRadio ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {choices!.map((opt) => {
+            const checked = value === opt;
+            return (
+              <label
+                key={opt}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 10,
+                  padding: '12px 14px',
+                  border: `1px solid ${checked ? 'var(--forest)' : 'var(--border)'}`,
+                  borderRadius: 12,
+                  background: checked ? 'rgba(31,138,92,0.08)' : 'var(--surface)',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  lineHeight: 1.5,
+                  color: checked ? 'var(--forest-deep)' : 'var(--ink)',
+                  fontWeight: checked ? 600 : 400,
+                }}
+              >
+                <input
+                  type="radio"
+                  name={name}
+                  value={opt}
+                  checked={checked}
+                  onChange={() => onChange(opt)}
+                  style={{ accentColor: 'var(--forest)', marginTop: 3 }}
+                />
+                <span>{opt}</span>
+              </label>
+            );
+          })}
+        </div>
+      ) : (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          rows={3}
+          required
+          style={textareaStyle}
+        />
+      )}
+    </Field>
   );
 }
 

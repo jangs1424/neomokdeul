@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getCohort, updateCohort, type CohortStatus } from '@neomokdeul/db';
 
+function arrOrUndef(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const cleaned = v.map((x) => String(x).trim()).filter(Boolean);
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -65,6 +71,14 @@ export async function PATCH(
     if (body.matchQIdealSoulmateMust !== undefined) patch.matchQIdealSoulmateMust = body.matchQIdealSoulmateMust || undefined;
     if (body.matchQIdealRelationship !== undefined) patch.matchQIdealRelationship = body.matchQIdealRelationship || undefined;
     if (body.matchQIdealPartnerQ !== undefined) patch.matchQIdealPartnerQ = body.matchQIdealPartnerQ || undefined;
+    if (body.matchQConvStyleSelfChoices !== undefined) patch.matchQConvStyleSelfChoices = arrOrUndef(body.matchQConvStyleSelfChoices);
+    if (body.matchQConvWithStrangersChoices !== undefined) patch.matchQConvWithStrangersChoices = arrOrUndef(body.matchQConvWithStrangersChoices);
+    if (body.matchQConvAttractionChoices !== undefined) patch.matchQConvAttractionChoices = arrOrUndef(body.matchQConvAttractionChoices);
+    if (body.matchQIdealImportantChoices !== undefined) patch.matchQIdealImportantChoices = arrOrUndef(body.matchQIdealImportantChoices);
+    if (body.matchQIdealSoulmateMustChoices !== undefined) patch.matchQIdealSoulmateMustChoices = arrOrUndef(body.matchQIdealSoulmateMustChoices);
+    if (body.matchQIdealRelationshipChoices !== undefined) patch.matchQIdealRelationshipChoices = arrOrUndef(body.matchQIdealRelationshipChoices);
+    if (body.matchQIdealPartnerQChoices !== undefined) patch.matchQIdealPartnerQChoices = arrOrUndef(body.matchQIdealPartnerQChoices);
+    if (body.kakaoOpenchatHelpImageUrls !== undefined) patch.kakaoOpenchatHelpImageUrls = arrOrUndef(body.kakaoOpenchatHelpImageUrls);
 
     const updated = await updateCohort(id, patch);
     if (!updated) {

@@ -51,8 +51,7 @@ export default async function MatchFormPage() {
         >
           <h1
             style={{
-              fontFamily: 'var(--font-serif)',
-              fontSize: 22,
+                            fontSize: 22,
               color: 'var(--ink)',
               marginBottom: 12,
             }}
@@ -138,8 +137,7 @@ export default async function MatchFormPage() {
         >
           <h1
             style={{
-              fontFamily: 'var(--font-serif)',
-              fontSize: 22,
+                            fontSize: 22,
               color: 'var(--ink)',
               marginBottom: 12,
             }}

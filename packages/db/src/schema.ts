@@ -67,6 +67,16 @@ export interface Cohort {
   matchQIdealSoulmateMust?: string;
   matchQIdealRelationship?: string;
   matchQIdealPartnerQ?: string;
+  // Phase 16: 객관식 선택지 (있으면 라디오, 없으면 자유서술)
+  matchQConvStyleSelfChoices?: string[];
+  matchQConvWithStrangersChoices?: string[];
+  matchQConvAttractionChoices?: string[];
+  matchQIdealImportantChoices?: string[];
+  matchQIdealSoulmateMustChoices?: string[];
+  matchQIdealRelationshipChoices?: string[];
+  matchQIdealPartnerQChoices?: string[];
+  // Phase 16: 오픈채팅 설명 이미지(남자 참가자 섹션용)
+  kakaoOpenchatHelpImageUrls?: string[];
 }
 
 // ---------------------------------------------------------------------------

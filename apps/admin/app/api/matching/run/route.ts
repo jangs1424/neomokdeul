@@ -110,20 +110,175 @@ function genderPrefsOk(m: MatchResponse, f: MatchResponse): boolean {
   return mOk && fOk;
 }
 
+/**
+ * Age hard filter — host's matching rule (docs/matching-heuristics.md §8).
+ *   - 기본 ±3살, 남자가 연상이면 +4살까지 OK
+ *   - 한쪽 ≤23이면 상대 ≤26 (라이프스테이지 차이 컷)
+ *   - 동갑/남자연상 우선순위는 ageOrientationBonus()에서 점수로 처리
+ */
+function agesOk(maleApp: Application, femaleApp: Application, refYear: number): boolean {
+  const maleAge = refYear - maleApp.birthYear;
+  const femaleAge = refYear - femaleApp.birthYear;
+  const diff = maleAge - femaleAge; // >0: male older
+  if (diff > 4) return false;
+  if (diff < -3) return false;
+  if (maleAge <= 23 && femaleAge > 26) return false;
+  if (femaleAge <= 23 && maleAge > 26) return false;
+  return true;
+}
+
+/**
+ * 나이 방향 가/감점 — 호스트 우선순위:
+ *   1순위 남자 연상(Δ>0): +0.05
+ *   2순위 동갑(Δ=0): -0.02 (소폭 디스선호 — 너무 많이 만들지 않게)
+ *   3순위 여자 연상(Δ<0): -0.08 (강한 디스선호)
+ * 하드필터(agesOk)에서 여자 연상 ≤3살, 남자 연상 ≤4살로 컷됨.
+ * 합계가 score를 0..1 범위 밖으로 보낼 수 있으니 호출부에서 clamp 필요.
+ */
+function ageOrientationBonus(maleApp: Application, femaleApp: Application, refYear: number): number {
+  const diff = (refYear - maleApp.birthYear) - (refYear - femaleApp.birthYear);
+  if (diff > 0) return 0.05;
+  if (diff === 0) return -0.02;
+  return -0.08;
+}
+
 // ---------------------------------------------------------------------------
-// Fallback heuristic scorer
+// Content-based signal vocabulary (docs/matching-heuristics.md §1-§4)
+// 단순 substring match — 정밀도보다 재현율 우선. Claude가 최종 30페어 폴리시.
 // ---------------------------------------------------------------------------
-function heuristicScore(slotOverlap: number): {
-  score: number;
-  reasoning: string;
-} {
-  const capped = Math.min(4, slotOverlap);
-  const raw = 0.5 + capped / 8;
-  const score = Math.max(0, Math.min(1, raw));
-  return {
-    score: Math.round(score * 100) / 100,
-    reasoning: `LLM 미연동 · 슬롯 겹침 ${slotOverlap}개`,
-  };
+const PLACE_KEYWORDS = [
+  '한강','카페','서점','전시','미술관','공원','박물관','극장','공연장','도서관',
+  '북한산','남산','관악산','청계천','덕수궁','경복궁','창경궁',
+  '홍대','이태원','강남','성수','연남','익선동','망원','북촌','삼청동','한남',
+  '제주','부산','강릉','속초','여수','경주','전주',
+  '바다','숲','해변','야경',
+];
+const ACTIVITY_KEYWORDS = [
+  '산책','달리기','러닝','등산','트레킹','하이킹','자전거','라이딩','드라이브','캠핑','피크닉',
+  '맛집','맛집탐방','카페투어','쿠킹','베이킹','요리',
+  '여행','국내여행','해외여행','휴가','출사',
+  '요가','필라테스','운동','헬스','클라이밍','테니스','수영','골프',
+  '독서','글쓰기','사진','드로잉','그림','피아노','기타',
+  '영화','전시관람','공연','뮤지컬','콘서트','페스티벌',
+  '게임','보드게임','방탈출',
+];
+const MUSIC_KEYWORDS = ['재즈','클래식','인디','락','힙합','발라드','팝','가요','시티팝'];
+
+const FOOD_CATEGORIES: { label: string; words: string[] }[] = [
+  { label: '기름진·고기', words: ['치킨','피자','햄버거','파스타','스테이크','갈비','삼겹살','곱창','고기','기름'] },
+  { label: '한식 담백', words: ['된장찌개','김치찌개','청국장','백반','나물','비빔밥','한식','집밥','국밥'] },
+  { label: '분식·간편', words: ['떡볶이','마라탕','라면','김밥','분식','우동','컵라면','떡국'] },
+  { label: '건강·비건', words: ['샐러드','비건','채식','그릭','프로틴','브런치','과일','건강'] },
+  { label: '아시안', words: ['초밥','라멘','카레','타코','팟타이','포','쌀국수','아시안'] },
+  { label: '디저트·카페', words: ['디저트','케이크','빵','베이커리','마카롱','도넛','아이스크림','달달','커피'] },
+];
+
+const QUIET_LEXICON = ['조용','차분','듣','경청','내향','낯가림','낯선','어색','과묵','수줍','숫기'];
+const ACTIVE_LEXICON = ['활발','외향','리액션','먼저 말','잘 웃','발랄','에너지','수다','조잘','시끄','유머'];
+
+function sharedKeywords(a: string, b: string, vocab: string[]): string[] {
+  const hit: string[] = [];
+  for (const kw of vocab) {
+    if (a.includes(kw) && b.includes(kw)) hit.push(kw);
+  }
+  return hit;
+}
+
+/** 장소·활동·음악 키워드 공유 */
+function keywordOverlapSignal(mr: MatchResponse, fr: MatchResponse): { bonus: number; matched: string[] } {
+  const mText = [mr.day3Place, mr.day4Together, mr.day2Hobby, mr.convAttraction, mr.idealSoulmateMust]
+    .filter(Boolean).join(' ').toLowerCase();
+  const fText = [fr.day3Place, fr.day4Together, fr.day2Hobby, fr.convAttraction, fr.idealSoulmateMust]
+    .filter(Boolean).join(' ').toLowerCase();
+  const all = [
+    ...sharedKeywords(mText, fText, PLACE_KEYWORDS),
+    ...sharedKeywords(mText, fText, ACTIVITY_KEYWORDS),
+    ...sharedKeywords(mText, fText, MUSIC_KEYWORDS),
+  ];
+  const deduped = Array.from(new Set(all));
+  // 공통 키워드 1개당 +0.03, 상한 0.15
+  return { bonus: Math.min(0.15, deduped.length * 0.03), matched: deduped };
+}
+
+/** 소울푸드 같은 카테고리 */
+function foodAffinitySignal(mr: MatchResponse, fr: MatchResponse): { bonus: number; category: string | null } {
+  const m = (mr.day1Soulfood ?? '').toLowerCase();
+  const f = (fr.day1Soulfood ?? '').toLowerCase();
+  if (!m || !f) return { bonus: 0, category: null };
+  for (const cat of FOOD_CATEGORIES) {
+    if (cat.words.some(w => m.includes(w)) && cat.words.some(w => f.includes(w))) {
+      return { bonus: 0.06, category: cat.label };
+    }
+  }
+  return { bonus: 0, category: null };
+}
+
+/** 답변 분량 매칭 (성의·에너지 일치) */
+function effortMatchSignal(mr: MatchResponse, fr: MatchResponse): { bonus: number; ratio: number } {
+  const fields = [
+    'convStyleSelf','convWithStrangers','convAttraction',
+    'idealImportant','idealSoulmateMust','idealRelationship','idealPartnerQ',
+    'day1Soulfood','day2Hobby','day3Place','day4Together',
+  ] as const;
+  let mLen = 0, fLen = 0;
+  for (const k of fields) {
+    mLen += (mr[k] as string | undefined)?.length ?? 0;
+    fLen += (fr[k] as string | undefined)?.length ?? 0;
+  }
+  if (mLen === 0 || fLen === 0) return { bonus: 0, ratio: 0 };
+  const ratio = Math.min(mLen, fLen) / Math.max(mLen, fLen); // 0..1
+  // ratio 0.5 이하면 0, 1.0이면 +0.05 (선형)
+  const bonus = ratio >= 0.5 ? 0.05 * ((ratio - 0.5) / 0.5) : 0;
+  return { bonus, ratio };
+}
+
+/** 낯가림×활발 성격 보완 or 같은 톤 */
+function personalityComplementSignal(mr: MatchResponse, fr: MatchResponse): { bonus: number; note: string | null } {
+  const m = [mr.convStyleSelf, mr.convWithStrangers].filter(Boolean).join(' ').toLowerCase();
+  const f = [fr.convStyleSelf, fr.convWithStrangers].filter(Boolean).join(' ').toLowerCase();
+  const mQuiet = QUIET_LEXICON.some(w => m.includes(w));
+  const mActive = ACTIVE_LEXICON.some(w => m.includes(w));
+  const fQuiet = QUIET_LEXICON.some(w => f.includes(w));
+  const fActive = ACTIVE_LEXICON.some(w => f.includes(w));
+  if ((mQuiet && !mActive && fActive && !fQuiet) || (fQuiet && !fActive && mActive && !mQuiet)) {
+    return { bonus: 0.08, note: '성격 보완형(차분×활발)' };
+  }
+  if (mActive && fActive && !mQuiet && !fQuiet) return { bonus: 0.03, note: '둘 다 활발' };
+  if (mQuiet && fQuiet && !mActive && !fActive) return { bonus: 0.03, note: '둘 다 차분' };
+  return { bonus: 0, note: null };
+}
+
+// ---------------------------------------------------------------------------
+// 종합 휴리스틱 — 슬롯 + 나이방향 + 내용 시그널 (greedy가 이걸로 정렬)
+// ---------------------------------------------------------------------------
+function computeHeuristicScore(
+  maleApp: Application,
+  femaleApp: Application,
+  mr: MatchResponse,
+  fr: MatchResponse,
+  slotOverlap: number,
+  refYear: number,
+): { rawScore: number; reasoning: string } {
+  // 슬롯은 작은 기여(이미 ≥2 하드필터 통과): 0.35..0.45
+  const slotBase = 0.35 + Math.min(4, slotOverlap) * 0.025;
+  const kw = keywordOverlapSignal(mr, fr);
+  const food = foodAffinitySignal(mr, fr);
+  const effort = effortMatchSignal(mr, fr);
+  const personality = personalityComplementSignal(mr, fr);
+  const ageBonus = ageOrientationBonus(maleApp, femaleApp, refYear);
+
+  const rawScore = slotBase + kw.bonus + food.bonus + effort.bonus + personality.bonus + ageBonus;
+
+  const parts: string[] = [`슬롯 ${slotOverlap}개`];
+  if (kw.matched.length) parts.push(`키워드[${kw.matched.slice(0, 4).join(',')}]`);
+  if (food.category) parts.push(`소울푸드 ${food.category}`);
+  if (effort.ratio >= 0.7) parts.push(`분량 비슷(${Math.round(effort.ratio * 100)}%)`);
+  if (personality.note) parts.push(personality.note);
+  if (ageBonus > 0) parts.push('남자 연상');
+  else if (ageBonus === -0.02) parts.push('동갑');
+  else if (ageBonus < -0.02) parts.push('여자 연상');
+
+  return { rawScore, reasoning: parts.join(' · ') };
 }
 
 // ---------------------------------------------------------------------------
@@ -162,20 +317,35 @@ async function buildAndPair(
   dateSet: Set<string>,
   exclusionSet: Set<string>,
   avoid: Map<string, Set<string>> | undefined,
-): Promise<{ pairs: Candidate[]; skippedLowOverlap: number; llmCalls: number }> {
+  refYear: number,
+): Promise<{ pairs: Candidate[]; skippedLowOverlap: number; skippedAge: number; skippedNoOpenchat: number; llmCalls: number }> {
   // ---- Step 1: build heuristic candidates ----
   const candidates: Candidate[] = [];
   let skippedLowOverlap = 0;
+  let skippedAge = 0;
+  let skippedNoOpenchat = 0;
 
   for (const m of males) {
     const mr = responseByAppId.get(m.id);
     if (!mr) continue;
+
+    // Safety net: male must have a 1:1 KakaoTalk openchat URL
+    // (form already enforces required, but block at algorithm level too).
+    if (!mr.kakaoOpenchatUrl || !mr.kakaoOpenchatUrl.trim()) {
+      skippedNoOpenchat++;
+      continue;
+    }
 
     for (const f of females) {
       const fr = responseByAppId.get(f.id);
       if (!fr) continue;
 
       if (!genderPrefsOk(mr, fr)) continue;
+
+      if (!agesOk(m, f, refYear)) {
+        skippedAge++;
+        continue;
+      }
 
       const [a, b] = normalizePhonePair(m.phone, f.phone);
       if (exclusionSet.has(`${a}|${b}`)) continue;
@@ -188,15 +358,15 @@ async function buildAndPair(
         continue;
       }
 
-      const heur = heuristicScore(overlap);
+      const h = computeHeuristicScore(m, f, mr, fr, overlap, refYear);
       candidates.push({
         maleId: m.id,
         femaleId: f.id,
         mr,
         fr,
         overlap,
-        score: heur.score,
-        reasoning: heur.reasoning,
+        score: h.rawScore, // greedy 정렬용 — 스토리지 직전에 clamp
+        reasoning: h.reasoning,
       });
     }
   }
@@ -245,7 +415,7 @@ async function buildAndPair(
     }
   }
 
-  return { pairs, skippedLowOverlap, llmCalls };
+  return { pairs, skippedLowOverlap, skippedAge, skippedNoOpenchat, llmCalls };
 }
 
 // ---------------------------------------------------------------------------
@@ -303,7 +473,12 @@ export async function POST(req: Request) {
 
   const counts: Record<string, number> = { round1: 0, round2: 0 };
   let totalSkippedLowOverlap = 0;
+  let totalSkippedAge = 0;
+  let totalSkippedNoOpenchat = 0;
   let totalLlmCalls = 0;
+
+  // refYear: program start year — deterministic across runs of the same cohort
+  const refYear = Number(cohort.programStartDate.slice(0, 4)) || new Date().getFullYear();
 
   for (const round of rounds) {
     // 1. Delete existing draft rows for this round (idempotent rerun)
@@ -352,25 +527,30 @@ export async function POST(req: Request) {
     const dateSet = new Set(dateList);
 
     // 5. Build candidates + greedy pair
-    const { pairs, skippedLowOverlap, llmCalls } = await buildAndPair(
+    const { pairs, skippedLowOverlap, skippedAge, skippedNoOpenchat, llmCalls } = await buildAndPair(
       pairableMales,
       pairableFemales,
       responseByAppId,
       dateSet,
       exclusionSet,
       avoid,
+      refYear,
     );
     totalSkippedLowOverlap += skippedLowOverlap;
+    totalSkippedAge += skippedAge;
+    totalSkippedNoOpenchat += skippedNoOpenchat;
     totalLlmCalls += llmCalls;
 
     // 6. Insert drafts
     for (const p of pairs) {
+      // clamp raw greedy score to 0..1 for DB storage
+      const storedScore = Math.round(Math.max(0, Math.min(1, p.score)) * 100) / 100;
       await createMatching({
         cohortId,
         round,
         maleApplicationId: p.maleId,
         femaleApplicationId: p.femaleId,
-        score: p.score,
+        score: storedScore,
         reasoning: p.reasoning,
       } as Omit<
         Matching,
@@ -388,6 +568,8 @@ export async function POST(req: Request) {
     round1: counts.round1 ?? 0,
     round2: counts.round2 ?? 0,
     skippedLowOverlap: totalSkippedLowOverlap,
+    skippedAge: totalSkippedAge,
+    skippedNoOpenchat: totalSkippedNoOpenchat,
     llmMode: claudeConfigured ? "claude-haiku-4.5" : "heuristic",
     llmCalls: totalLlmCalls,
     estCostUsd: Number((totalLlmCalls * 0.0004).toFixed(4)),

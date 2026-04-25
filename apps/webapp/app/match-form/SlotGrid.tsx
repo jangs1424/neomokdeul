@@ -91,7 +91,7 @@ export function SlotGrid({ startDate, endDate, value, onChange, readOnly }: Prop
                 textAlign: 'left',
                 padding: '8px 10px',
                 borderBottom: '1px solid var(--border)',
-                background: 'rgba(90,122,92,0.06)',
+                background: 'rgba(31,138,92,0.06)',
                 color: 'var(--sub)',
                 fontWeight: 500,
                 fontSize: 12,
@@ -107,7 +107,7 @@ export function SlotGrid({ startDate, endDate, value, onChange, readOnly }: Prop
                   padding: '8px 6px',
                   borderBottom: '1px solid var(--border)',
                   borderLeft: '1px solid var(--border)',
-                  background: 'rgba(90,122,92,0.06)',
+                  background: 'rgba(31,138,92,0.06)',
                   color: 'var(--sub)',
                   fontWeight: 500,
                   fontSize: 12,
@@ -158,7 +158,7 @@ export function SlotGrid({ startDate, endDate, value, onChange, readOnly }: Prop
                           height: '100%',
                           minHeight: 44,
                           cursor: readOnly ? 'default' : 'pointer',
-                          background: checked ? 'rgba(90,122,92,0.18)' : 'transparent',
+                          background: checked ? 'rgba(31,138,92,0.18)' : 'transparent',
                         }}
                       >
                         <input

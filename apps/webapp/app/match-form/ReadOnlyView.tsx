@@ -38,8 +38,7 @@ export function ReadOnlyView({ application, cohort, response, closed, onEdit }: 
         </p>
         <h1
           style={{
-            fontFamily: 'var(--font-serif)',
-            fontSize: 24,
+                        fontSize: 24,
             color: 'var(--ink)',
             lineHeight: 1.35,
             marginBottom: 8,
@@ -191,8 +190,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     >
       <h2
         style={{
-          fontFamily: 'var(--font-serif)',
-          fontSize: 18,
+                    fontSize: 18,
           color: 'var(--ink)',
           marginBottom: 14,
         }}

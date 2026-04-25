@@ -1,5 +1,4 @@
 import type { Application } from '@neomokdeul/db';
-import type { Round } from '../lib/program';
 
 interface Props {
   partnerApp: Application | null;
@@ -24,22 +23,20 @@ export function PartnerCard({ partnerApp, round, published }: Props) {
     return (
       <section
         style={{
-          margin: '20px 16px',
-          padding: '20px',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderLeft: '3px solid var(--border)',
-          borderRadius: 14,
-          opacity: 0.7,
+          margin: '16px 20px 0',
+          padding: '18px 20px',
+          background: 'var(--bg-soft)',
+          border: '1px solid var(--line)',
+          borderRadius: 16,
         }}
       >
         <div
           style={{
             fontSize: 11,
-            letterSpacing: '.08em',
+            letterSpacing: '0.14em',
             textTransform: 'uppercase',
-            color: 'var(--sub)',
-            fontWeight: 600,
+            color: 'var(--muted)',
+            fontWeight: 700,
           }}
         >
           {roundLabel}
@@ -49,8 +46,8 @@ export function PartnerCard({ partnerApp, round, published }: Props) {
             fontSize: 17,
             fontWeight: 700,
             color: 'var(--ink)',
-            marginTop: 10,
-            letterSpacing: '-.01em',
+            marginTop: 8,
+            letterSpacing: '-0.02em',
           }}
         >
           곧 공개될 예정이에요
@@ -58,7 +55,7 @@ export function PartnerCard({ partnerApp, round, published }: Props) {
         <p
           style={{
             fontSize: 13.5,
-            color: 'var(--sub)',
+            color: 'var(--muted)',
             marginTop: 6,
             lineHeight: 1.7,
           }}
@@ -69,54 +66,70 @@ export function PartnerCard({ partnerApp, round, published }: Props) {
     );
   }
 
-  // Truncate motivation to ~40 chars for one-liner display
   const motivationPreview =
-    partnerApp.motivation.length > 42
-      ? partnerApp.motivation.slice(0, 42) + '…'
+    partnerApp.motivation.length > 60
+      ? partnerApp.motivation.slice(0, 60) + '…'
       : partnerApp.motivation;
 
   return (
     <section
       style={{
-        margin: '20px 16px',
-        padding: '20px',
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderLeft: '3px solid var(--accent)',
-        borderRadius: 14,
+        margin: '16px 20px 0',
+        padding: '20px 22px',
+        background: '#fff',
+        border: '1px solid var(--line)',
+        borderRadius: 16,
+        boxShadow: '0 10px 30px -18px rgba(10,74,48,0.18)',
       }}
     >
       <div
         style={{
-          fontSize: 11,
-          letterSpacing: '.08em',
-          textTransform: 'uppercase',
-          color: 'var(--forest)',
-          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
         }}
       >
-        {roundLabel}
+        <span
+          style={{
+            display: 'inline-block',
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: 'var(--green)',
+          }}
+        />
+        <span
+          style={{
+            fontSize: 11,
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            color: 'var(--green-strong)',
+            fontWeight: 700,
+          }}
+        >
+          {roundLabel}
+        </span>
       </div>
+
       <div
         style={{
-          fontSize: 21,
-          fontWeight: 700,
+          fontSize: 26,
+          fontWeight: 800,
           color: 'var(--ink)',
           marginTop: 10,
-          fontFamily: 'var(--font-serif)',
-          letterSpacing: '-.01em',
+          letterSpacing: '-0.03em',
+          lineHeight: 1.2,
         }}
       >
         {partnerApp.name}
       </div>
 
-      {/* Meta row */}
       <div
         style={{
           display: 'flex',
           flexWrap: 'wrap',
-          gap: '6px 12px',
-          marginTop: 10,
+          gap: '6px 8px',
+          marginTop: 12,
         }}
       >
         {[
@@ -131,11 +144,11 @@ export function PartnerCard({ partnerApp, round, published }: Props) {
               key={tag}
               style={{
                 fontSize: 12,
-                color: 'var(--sub)',
-                background: 'var(--bg)',
-                border: '1px solid var(--border)',
+                color: 'var(--text)',
+                background: 'var(--mint)',
                 borderRadius: 999,
-                padding: '3px 10px',
+                padding: '4px 10px',
+                fontWeight: 500,
               }}
             >
               {tag}
@@ -143,14 +156,16 @@ export function PartnerCard({ partnerApp, round, published }: Props) {
           ))}
       </div>
 
-      {/* One-line motivation */}
       <p
         style={{
-          fontSize: 13.5,
-          color: 'var(--sub)',
-          marginTop: 12,
+          fontSize: 14,
+          color: 'var(--text)',
+          marginTop: 14,
           lineHeight: 1.7,
-          fontStyle: 'italic',
+          padding: '12px 14px',
+          background: 'var(--bg-soft)',
+          borderRadius: 10,
+          borderLeft: '3px solid var(--green)',
         }}
       >
         "{motivationPreview}"
